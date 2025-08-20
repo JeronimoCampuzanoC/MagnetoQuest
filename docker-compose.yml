@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16
+    container_name: poc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poc_user
+      POSTGRES_PASSWORD: poc_pass
+      POSTGRES_DB: poc_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

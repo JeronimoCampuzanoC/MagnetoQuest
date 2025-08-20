@@ -7,7 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "mig:gen": "npm run typeorm -- migration:generate -d src/db/data-source.ts src/migrations/Init",
+    "mig:run": "npm run typeorm -- migration:run -d src/db/data-source.ts",
+    "mig:revert": "npm run typeorm -- migration:revert -d src/db/data-source.ts"
   },
   "keywords": [],
   "author": "",
@@ -15,7 +19,10 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.26"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
