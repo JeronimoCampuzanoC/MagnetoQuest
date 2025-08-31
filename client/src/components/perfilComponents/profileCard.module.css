@@ -1,0 +1,94 @@
+.card {
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  /* Fondo con patrón suave */
+  background:
+    radial-gradient(24px 24px at 16px 16px, rgba(255,255,255,0.2) 2px, transparent 3px) repeat,
+    linear-gradient(180deg, #aeb6bf 0%, #a7b0bb 100%);
+  background-size: 48px 48px, 100% 100%;
+  color: #fff;
+  position: relative;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.body {
+  padding: 20px 20px 56px; /* espacio para la barra inferior */
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatarWrapper {
+  margin-top: 4px;
+}
+
+.avatarButton {
+  width: 120px;
+  height: 120px;
+  border-radius: 9999px;
+  border: none;
+  background: #e6ebf0;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s;
+}
+.avatarButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+  background: #f1f4f7;
+}
+
+.avatarIcon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.avatarImg {
+  width: 120px;
+  height: 120px;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 3px solid rgba(255,255,255,0.6);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.firstName {
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.1;
+}
+.lastName {
+  margin-top: 2px;
+  font-size: 18px;
+  opacity: 0.95;
+}
+.updated {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* Barra inferior translúcida */
+.statusBar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.25);
+  color: #212529;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.statusBar label {
+  color: #1f2937;
+  font-weight: 500;
+}
