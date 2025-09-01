@@ -1,0 +1,29 @@
+.parent {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    gap: 30px;
+    height: 100vh;
+}
+    
+.div6 {
+    grid-column: span 6 / span 6;
+    grid-row: span 2 / span 2;
+    background-color: aqua;
+}
+
+.div7 {
+    grid-column: span 6 / span 6;
+    grid-row: span 2 / span 2;
+    grid-column-start: 1;
+    grid-row-start: 8;
+    background-color: black;
+}
+
+.div8 {
+    grid-column: span 6 / span 6;
+    grid-row: span 5 / span 5;
+    grid-column-start: 1;
+    grid-row-start: 3;
+    background-color: blue;
+}
