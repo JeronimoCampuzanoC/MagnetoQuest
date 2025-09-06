@@ -159,6 +159,7 @@
 
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import styles from "./App.module.css";
 import Header from "../components/header";
 import TriviaApp from "./triviaApp";
 import Misiones from "./misiones";
@@ -167,7 +168,7 @@ import Footer from "../components/footer";
 
 const App: React.FC = () => {
   return (
-    <>
+    <div className={styles.appContainer}>
       <Header />
 
       <Routes>
@@ -176,8 +177,8 @@ const App: React.FC = () => {
         <Route path="/perfil" element={<Perfil/>} />
         <Route path="/misiones" element={<Misiones/>} />
       </Routes>
-      <Footer />
-    </>
+    
+    </div>
   );
 };
 
