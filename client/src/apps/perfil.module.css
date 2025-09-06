@@ -1,6 +1,6 @@
 .parent {
     display: grid;
-    padding: 30px;
+    padding: 10px;
     grid-template-columns: repeat(6, 1fr);
     grid-template-rows: repeat(9, 1fr);
     gap: 20px;
@@ -10,6 +10,10 @@
 .div2 {
     grid-column: span 2 / span 2;
     grid-row: span 10 / span 10;
+    background-color: white;
+    width: 70%;
+    border-radius: 8px;
+    height: 50%;
     
 }
 
