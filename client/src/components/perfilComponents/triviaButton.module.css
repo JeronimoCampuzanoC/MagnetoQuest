@@ -1,0 +1,73 @@
+.banner {
+  width: 90%;
+  border: 0;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  margin-top: 20%;
+  background: linear-gradient(90deg, #200054 0%, #430096 100%);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+
+.banner:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.banner:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(0,0,0,.2);
+}
+
+.reverse { flex-direction: row-reverse; }
+
+/* Imagen */
+.imageWrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  margin-left: -5px;
+  margin-top: -6px;
+}
+
+.image {
+  display: block;
+  width: 75px;   /* ajusta a tu asset */
+  height: 90px;
+}
+
+/* Textos */
+.texts {
+  display: grid;
+  gap: 4px;
+  margin-left: -10px;
+  margin-top: -9px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+
+}
+
+.subtitle {
+  font-size: 10px;
+  opacity: .95;
+  line-height: 1.25;
+}
+
+/* Responsive compacto */
+@media (max-width: 480px) {
+  .banner { padding: 12px 14px; gap: 10px; }
+  .image { width: 56px; }
+  .title { font-size: 16px; }
+  .subtitle { font-size: 13px; }
+}
