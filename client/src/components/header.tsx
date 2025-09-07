@@ -27,7 +27,7 @@ const Header: React.FC = () => {
                 </Button>
 
                 {/* Logo*/}
-                <img src="statics/magneto.svg" alt="MagnetoQuest" height="35" className="d-inline-block align-top" />
+                <img src="static/magneto.svg" alt="MagnetoQuest" height="35" className="d-inline-block align-top" />
 
                 {/*Search input*/}
                 <div className={`${styles.positonSearchBar} d-none d-md-flex flex-grow-1 px-3`}>
