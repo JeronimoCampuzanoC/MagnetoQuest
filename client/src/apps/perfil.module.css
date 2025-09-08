@@ -1,15 +1,20 @@
 .parent {
     display: grid;
-    padding: 30px;
+    padding: 5px;
     grid-template-columns: repeat(6, 1fr);
     grid-template-rows: repeat(9, 1fr);
-    gap: 20px;
+    gap: 100px;
     height: 100vh;
 }
     
 .div2 {
     grid-column: span 2 / span 2;
     grid-row: span 10 / span 10;
+    background-color: white;
+    width: 70%;
+    border-radius: 20px;
+    height: 70%;
+    margin-left: 35%;
     
 }
 
@@ -17,5 +22,13 @@
     grid-column: span 4 / span 4;
     grid-row: span 10 / span 10;
     grid-column-start: 3;
+    margin-left: -5%;
+    width: 80%;
 }
-        
+
+.triviaButtonContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: -20px;
+}
