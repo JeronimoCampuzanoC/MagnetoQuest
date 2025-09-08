@@ -1,0 +1,95 @@
+.card {
+  border: none;
+  border-radius: 20px;
+  overflow: hidden;
+  background: url("/public/static/cardBackground.png") center/cover no-repeat; 
+  color: #fff;
+  position: relative;
+  width: 100%;
+  height: 300px;
+}
+
+.body {
+  padding: 20px 20px 56px; /* espacio para la barra inferior */
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatarWrapper {
+  margin-top: 4px;
+}
+
+.avatarButton {
+  width: 120px;
+  height: 120px;
+  border-radius: 9999px;
+  border: none;
+  background: #e6ebf0;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s;
+}
+
+
+.avatarIcon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.avatarImg {
+  width: 120px;
+  height: 120px;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 3px solid rgba(255,255,255,0.6);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.firstName {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.1;
+}
+.lastName {
+  margin-top: 2px;
+  font-size: 16px;
+  opacity: 0.95;
+}
+.updated {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.statusBar label {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.statusBar {
+  margin-top: 10px;
+  background: rgba(153, 153, 153, 0.18);
+  padding: 5px 12px;
+  border-radius: 12px;
+}
+
+.switch { margin-right: 10px; }
+.switchLabel { color: #fff; font-size: 10px;}
+
+/* Cambia color del switch cuando está activo */
+.statusBar :global(.form-check-input:checked) {
+  background-color: #22c55e;   /* verde */
+  border-color: #22c55e;
+}
+
+/* Opcional: cambia el foco */
+.statusBar :global(.form-check-input:focus) {
+  box-shadow: 0 0 0 0.25rem rgba(34, 197, 94, 0.25); /* verde suave */
+}

@@ -5,5 +5,8 @@ export default function Home() {
         Trivia
       </main>
     </div>
+
+
+
   )
 }

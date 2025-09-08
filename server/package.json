@@ -21,8 +21,7 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "pg": "^8.16.3",
-    "reflect-metadata": "^0.2.2",
-    "typeorm": "^0.3.26"
+    "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -30,6 +29,8 @@
     "@types/node": "^24.3.0",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typeorm": "^0.3.26",
     "typescript": "^5.9.2"
   }
 }
