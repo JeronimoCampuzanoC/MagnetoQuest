@@ -39,8 +39,8 @@
 
 
 .avatarIcon {
-  font-size: 28px;
-  line-height: 1;
+  width: 32px;
+  height: 32px;
 }
 
 .avatarImg {
