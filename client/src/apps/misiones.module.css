@@ -4,12 +4,14 @@
     grid-template-rows: repeat(9, 1fr);
     gap: 30px;
     height: 100vh;
+    margin-top: 30px;
 }
     
-.div6 {
-    grid-column: span 6 / span 6;
-    grid-row: span 2 / span 2;
-    background-color: aqua;
+.progressBar {
+    background-color: rgb(255, 255, 255);
+    border-radius: 20px;
+    width: 670%;
+    height: 140%;
 }
 
 .div7 {

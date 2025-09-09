@@ -1,0 +1,43 @@
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  color: #334155;
+}
+
+.drop {
+  background: #eef2f6;
+  border-radius: 14px;
+  padding: 18px;
+  border: 1px dashed rgba(0,0,0,0.12);
+  transition: background .15s, border-color .15s;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.drag { background: #e9edf4; border-color: #6b75ff; }
+
+.title { color: #8a93a3; font-weight: 700; margin-bottom: 12px; font-size: 15px; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: #fff; border-radius: 999px; padding: 8px 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.icon { color: #1f3b7a; display: inline-flex; }
+
+.pillBtn {
+  border: 0; background: transparent; padding: 0;
+  color: #1f3b7a; font-weight: 600; cursor: pointer;
+  font-size: 15px; line-height: 1;
+}
+
+.input { display: none; }
+
+.meta { margin-top: 10px; color: #8a93a3; font-size: .6rem; }
+
+.fileName { margin-top: 8px; font-size: .6rem; color: #475569; }
+
+.error { margin-top: 8px; color: #dc2626; font-weight: 700; }
