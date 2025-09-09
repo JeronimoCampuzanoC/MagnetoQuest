@@ -45,7 +45,7 @@ const ProfileCard: React.FC<Props> = ({
             <img src={photoUrl} alt="Foto de perfil" className={styles.avatarImg} />
           ) : (
             <Button type="button" className={styles.avatarButton} onClick={onAddPhoto}>
-              <div className={styles.avatarIcon} aria-hidden>＋</div>
+              <div className={styles.avatarIcon} aria-hidden><img src="/static/agregar.png" className={styles.avatarIcon}></img></div>
               <span>Añadir foto</span>
             </Button>
           )}
