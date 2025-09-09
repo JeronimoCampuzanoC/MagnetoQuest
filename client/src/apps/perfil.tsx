@@ -2,6 +2,7 @@ import styles from "./perfil.module.css";
 import ProfileCard from "../components/perfilComponents/profileCard";
 import ProfileTabs from "../components/perfilComponents/profileTabs";
 import TriviaButton from "../components/perfilComponents/triviaButton";
+import CvUploader from "../components/perfilComponents/cvUploader";
 
 export default function Perfil() {
     return (
@@ -28,6 +29,10 @@ export default function Perfil() {
                             onClick={() => console.log("Ir a trivia")}
                             className="m-3"
                         />
+                    </div>
+
+                    <div style={{ maxWidth: 420, marginTop: -20 }}>
+                        <CvUploader onFileSelected={(file) => console.log("Archivo:", file)} />
                     </div>
                 </div>
                 <div className={styles.div3}><ProfileTabs /></div>
