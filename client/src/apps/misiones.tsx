@@ -1,7 +1,7 @@
 import styles from "./misiones.module.css"
 import ProgressBarSteps from "../components/perfilComponents/progressBar"
-import optionGrid from "../components/perfilComponents/optionGrid"
 import OptionGrid, { OptionItem } from "../components/perfilComponents/optionGrid"
+import Carousel from "../components/perfilComponents/carousel"
 
 const dataFromDB: OptionItem[] = [
     { id: 1, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: true },
@@ -34,6 +34,7 @@ export default function Misiones() {
                     </div>
 
                     <div className={styles.misiones}>
+
                         <div style={{ padding: 24 }}>
                             <OptionGrid
                                 items={dataFromDB}
@@ -45,7 +46,9 @@ export default function Misiones() {
                     </div>
 
                     <div className={styles.div7}>
-
+                        <div style={{ maxWidth: 2000}}>
+                            <Carousel autoPlayMs={2800} />
+                        </div>
                     </div>
 
                 </div>

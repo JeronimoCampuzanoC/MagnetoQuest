@@ -83,7 +83,7 @@ const OptionGridStatic: React.FC<Props> = ({
             </div>
           
                 <div className={styles.imagePlaceholder}>
-                    <div className={styles.fakeImage}><img src="../static/personaMisiones.png"></img></div>
+                    <div className={styles.fakeImage}><img src="../static/personaMisiones.png" style={{width:320}}></img></div>
                 </div>
             
         </div>
