@@ -1,13 +1,13 @@
 .wrapper {
   position: relative;
-  width: 100%;
-  overflow: hidden;
+  width: 95%;
 }
 
 .fill {
   position: absolute;
   inset: 0 auto 0 0;
   transition: width .25s ease;
+  z-index: 1;
 }
 
 /* Hitos */
@@ -18,15 +18,14 @@
   border-radius: 999px;
   display: grid;
   place-items: center;
+  z-index: 2;
 }
 
-/* anillo blanco con borde (para el look del mock) */
 .stepRing {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.06);
 }
 
 .stepIcon {
@@ -51,4 +50,8 @@
 }
 .locked .stepIcon {
   color: #a3a3a3;
+}
+
+.last .stepRing {
+  box-shadow: 0 0 0 3px rgb(255, 255, 255); /* ejemplo: aro especial */
 }
