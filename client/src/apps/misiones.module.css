@@ -1,17 +1,23 @@
 .parent {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: repeat(9, 1fr);
-    gap: 30px;
-    height: 120vh;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 8px;
     margin-top: 30px;
+    width: 100%;
 }
-    
+
 .progressBar {
     background-color: rgb(255, 255, 255);
     border-radius: 20px;
-    width: 680%;
-    height: 80%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(1, 1fr);
+    gap: 8px;
+    align-items: stretch;
+    width: 100%;
+    height: 90%;
+    grid-column: span 3 / span 3;
 }
 
 .points {
@@ -20,53 +26,66 @@
     margin-left: 25px;
 }
 
-.circule{
+.divCircle{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.circule {
     width: 160px;
     height: 160px;
     border-radius: 50%;
     background-color: #001B38;
-    margin-top: -15px;
-    margin-left: 155%;
+    margin-top: -30px;
 }
 
 .triangleRight {
-  width: 0;
-  height: 0;
-  border-top: 50px solid transparent;
-  border-bottom: 50px solid transparent;
-  border-left: 85px solid #ffffff;
-  margin-top: 30px;
-  margin-left: 50px;
+    width: 0;
+    height: 0;
+    border-top: 50px solid transparent;
+    border-bottom: 50px solid transparent;
+    border-left: 85px solid #ffffff;
+    margin-top: 30px;
+    margin-left: 50px;
 }
 
-.mIcon{
+.mIcon {
     width: 130px;
     margin-top: -125px;
-    margin-left:15px;
+    margin-left: 15px;
 }
 
+.mIconInsignia{
+    width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: -15px;
+}
 
+.emblemIcon {
+    width: 90px;
+}
 
-.emblemIcon{
-     width: 90px;
+.divInsignias{
+    margin-left: -100px;
+    display: flex;
+    align-items:center;
+    justify-content:space-around;
 }
 
 .div7 {
-    grid-column: span 6 / span 6;
+    grid-column: span 3 / span 3;
     grid-row: span 2 / span 2;
-    grid-column-start: 1;
-    grid-row-start: 8;
-    margin-top: -200px;
+    grid-row-start: 5;
 }
 
 .misiones {
-    grid-column: span 6 / span 6;
-    grid-row: span 5 / span 5;
-    grid-column-start: 1;
-    grid-row-start: 3;
+    grid-column: span 3 / span 3;
+    grid-row: span 3 / span 3;
+    grid-row-start: 2;
     border-radius: 20px;
     width: 100%;
-    height: 82%;
     background-color: rgb(255, 255, 255);
-    margin-top: -120px;
 }

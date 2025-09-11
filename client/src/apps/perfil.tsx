@@ -2,7 +2,7 @@ import styles from "./perfil.module.css";
 import ProfileCard from "../components/perfilComponents/profileCard";
 import ProfileTabs from "../components/perfilComponents/profileTabs";
 import TriviaButton from "../components/perfilComponents/triviaButton";
-import CvUploader from "../components/perfilComponents/cvUploader";
+import CvUploader from "../components/misionesComponents/cvUploader";
 
 export default function Perfil() {
     return (
