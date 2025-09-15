@@ -1,0 +1,12 @@
+node.js (npm)
+react
+express
+cors
+TypeORM
+docker
+Posgress
+lucide-react
+bootstrap
+reactstrap
+react-router-dom
+react-scripts

@@ -10,6 +10,6 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASS ?? 'poc_pass', // ← aseguramos string
   database: process.env.DB_NAME ?? 'poc_db',
   entities: [User],
-  synchronize: false,
+  synchronize: true,
   logging: false,
 });

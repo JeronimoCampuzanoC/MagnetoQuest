@@ -1,0 +1,47 @@
+.cardExtra {
+  display: grid;
+  grid-template-columns: 1fr 96px; /* texto a la izquierda, imagen a la derecha */
+  align-items: center;
+  gap: 12px;
+  border-radius: 16px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid rgba(41,0,120,.2);
+  color: #1b0e4a;
+  transition: transform .25s ease, box-shadow .25s ease, background .25s ease, color .2s ease;
+}
+
+.cardExtraImage {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.cardExtraText {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cardExtraTitle {
+  font-weight: 800;
+  font-size: 20px;
+  margin: 0;
+}
+
+.cardExtraSubtitle {
+  font-size: 13px;
+  margin: 0;
+  opacity: .85;
+}
+
+.cardExtra.active {
+  background: linear-gradient(135deg, #200054 0%, #430096 100%);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(67,0,150,.35);
+}
+
+.cardExtra.active .cardExtraSubtitle {
+  opacity: .95;
+}
