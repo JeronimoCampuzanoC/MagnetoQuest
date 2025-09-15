@@ -1,59 +1,45 @@
 import React, { useState } from "react";
+import styles from "./profileTabs.module.css";
 import {
-  Nav, NavItem, NavLink,
   TabContent, TabPane,
   Card, CardBody
 } from "reactstrap";
 
-type TabKey = "Editar perfil" | "Hoja de vida" | "Proyectos y certificados";
+type Tab = {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+};
 
-const ProfileTabs: React.FC = () => {
-  const [active, setActive] = useState<TabKey>("Editar perfil");
+const TABS: Tab[] = [
+  { id: "perfil", label: "Editar Perfil", icon: <span className={styles.icon}>👤</span> },
+  { id: "cv", label: "Diseño de mi hoja de vida", icon: <span className={styles.icon}>🗂️</span> },
+  { id: "proyectos", label: "Proyectos y Certificados", icon: <span className={styles.icon}>📄</span> },
+];
+
+export default function ProfileTabs() {
+  const [active, setActive] = useState("perfil");
 
   return (
     <>
-      {/* Header secundario (tabs) */}
-      <Nav pills className="gap-2 mb-3">
-        <NavItem>
-          <NavLink
-            href="#"
-            active={active === "Editar perfil"}
-            onClick={(e) => { e.preventDefault(); setActive("Editar perfil"); }}
-            className="d-flex align-items-center gap-2"
+      <nav className={styles.navbar} role="tablist" aria-label="Opciones de perfil">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActive(tab.id)}
+            className={`${styles.tab} ${active === tab.id ? styles.tabActive : ""}`}
+            role="tab"
+            aria-selected={active === tab.id}
           >
-            {/* <User size={16} /> */}
-            Editar Perfil
-          </NavLink>
-        </NavItem>
-
-        <NavItem>
-          <NavLink
-            href="#"
-            active={active === "Hoja de vida"}
-            onClick={(e) => { e.preventDefault(); setActive("Hoja de vida"); }}
-            className="d-flex align-items-center gap-2"
-          >
-            {/* <FileText size={16} /> */}
-            Diseño de mi hoja de vida
-          </NavLink>
-        </NavItem>
-
-        <NavItem>
-          <NavLink
-            href="#"
-            active={active === "Proyectos y certificados"}
-            onClick={(e) => { e.preventDefault(); setActive("Proyectos y certificados"); }}
-            className="d-flex align-items-center gap-2"
-          >
-            {/* <Layers size={16} /> */}
-            Proyectos y Certificados
-          </NavLink>
-        </NavItem>
-      </Nav>
-
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </nav>
       {/* Contenido de cada tab */}
       <TabContent activeTab={active}>
-        <TabPane tabId="Editar perfil">
+        <TabPane tabId="perfil">
           <Card>
             <CardBody>
               <h5 className="mb-3">Editar Perfil</h5>
@@ -63,7 +49,7 @@ const ProfileTabs: React.FC = () => {
           </Card>
         </TabPane>
 
-        <TabPane tabId="Hoja de vida">
+        <TabPane tabId="cv">
           <Card>
             <CardBody>
               <h5 className="mb-3">Diseño de mi hoja de vida</h5>
@@ -73,7 +59,7 @@ const ProfileTabs: React.FC = () => {
           </Card>
         </TabPane>
 
-        <TabPane tabId="Proyectos y certificados">
+        <TabPane tabId="proyectos">
           <Card>
             <CardBody>
               <h5 className="mb-3">Proyectos y Certificados</h5>
@@ -85,6 +71,4 @@ const ProfileTabs: React.FC = () => {
       </TabContent>
     </>
   );
-};
-
-export default ProfileTabs;
+}
