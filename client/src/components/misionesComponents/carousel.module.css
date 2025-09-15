@@ -31,7 +31,10 @@
   place-items: center;
   font-size: 22px;
 }
-.arrow:hover { filter: brightness(0.98); }
+
+.arrow:hover {
+  filter: brightness(0.98);
+}
 
 /* Pista: mostramos 3 tarjetas: izquierda, centro (destacada), derecha.
    Aun así renderizamos 5 (para que puedas personalizarlas). */
@@ -51,7 +54,7 @@
   grid-template-columns: 92px 1fr;
   gap: 12px;
   min-height: 120px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
 }
 
 /* Laterales (blancas) */
@@ -79,11 +82,13 @@
   align-content: center;
   gap: 6px;
 }
+
 .cardTitle {
   font-size: 20px;
   font-weight: 800;
   color: inherit;
 }
+
 .cardSubtitle {
   font-size: 13px;
   line-height: 1.2;
@@ -94,21 +99,57 @@
 /* Para simular 3 visibles:
    - Escala y opacidad en laterales
    - Centro a tamaño normal */
-.track > .card:nth-child(1),
-.track > .card:nth-child(3),
-.track > .card:nth-child(4),
-.track > .card:nth-child(5) {
+.track>.card:nth-child(1),
+.track>.card:nth-child(3),
+.track>.card:nth-child(4),
+.track>.card:nth-child(5) {
   transform: scale(.95);
   opacity: .9;
 }
 
 /* Responsivo */
 @media (max-width: 900px) {
-  .track { gap: 12px; }
-  .card { grid-template-columns: 80px 1fr; }
+  .track {
+    gap: 12px;
+  }
+
+  .card {
+    grid-template-columns: 80px 1fr;
+  }
 }
+
 @media (max-width: 640px) {
-  .card { grid-template-columns: 64px 1fr; }
-  .cardTitle { font-size: 18px; }
-  .cardSubtitle { font-size: 12px; }
+  .card {
+    grid-template-columns: 64px 1fr;
+  }
+
+  .cardTitle {
+    font-size: 18px;
+  }
+
+  .cardSubtitle {
+    font-size: 12px;
+  }
+}
+
+.container {
+  width: 100%;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.slide {
+  width: 350px;         /* 👈 tamaño del slide: ajusta a gusto */
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;    /* rellena sin deformar */
+  display: block;
+  border-radius: 12px;
 }

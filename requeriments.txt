@@ -9,3 +9,4 @@ lucide-react
 bootstrap
 reactstrap
 react-router-dom
+react-scripts
