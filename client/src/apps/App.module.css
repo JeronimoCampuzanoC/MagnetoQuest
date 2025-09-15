@@ -1,0 +1,6 @@
+.appContainer {
+  background-color: #F0F1F3; /* color de fondo */
+  min-height: 100vh; /* para que cubra toda la pantalla */
+  display: flex;
+  flex-direction: column;
+}

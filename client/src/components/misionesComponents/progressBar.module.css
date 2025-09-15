@@ -1,0 +1,57 @@
+.wrapper {
+  position: relative;
+  width: 95%;
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transition: width .25s ease;
+  z-index: 1;
+}
+
+/* Hitos */
+.step {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+
+.stepRing {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #ffffff;
+}
+
+.stepIcon {
+  position: relative;
+  z-index: 1;
+  color: #8c8c8c; /* icono por defecto */
+}
+
+/* estado alcanzado */
+.unlocked .stepRing {
+  background: #16a34a;
+  box-shadow: 0 0 0 2px #ffffff; /* aro amarillito */
+}
+.unlocked .stepIcon {
+  color: #ffffff; /* verde del check */
+}
+
+/* estado bloqueado */
+.locked .stepRing {
+  background: #f3f4f6;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.06);
+}
+.locked .stepIcon {
+  color: #a3a3a3;
+}
+
+.last .stepRing {
+  box-shadow: 0 0 0 3px rgb(255, 255, 255); /* ejemplo: aro especial */
+}

@@ -159,25 +159,27 @@
 
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import styles from "./App.module.css";
 import Header from "../components/header";
 import TriviaApp from "./triviaApp";
 import Misiones from "./misiones";
 import Perfil from "./perfil";
 import Footer from "../components/footer";
+import Notifications from "../components/notifications";
 
 const App: React.FC = () => {
   return (
-    <>
+    <div className={styles.appContainer}>
       <Header />
-
+      <Notifications />
       <Routes>
         <Route path="/" element={<div className="p-3">Página de inicio</div>} />
         <Route path="/home" element={<TriviaApp />} />
         <Route path="/perfil" element={<Perfil/>} />
         <Route path="/misiones" element={<Misiones/>} />
       </Routes>
-      <Footer />
-    </>
+    
+    </div>
   );
 };
 
