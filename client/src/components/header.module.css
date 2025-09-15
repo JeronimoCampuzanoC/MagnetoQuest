@@ -1,0 +1,43 @@
+.navCustom {
+  background-color: #ffffff;
+}
+
+.toggleButton {
+  margin-left: -20px;
+}
+
+.lettersItem{
+    font-size: 13px;
+}
+
+.positonSearchBar{
+    margin-left: 8%;
+}
+
+.cvPill {
+  background: #f2f3f8;
+  color: #2b2f7f;
+  border: 0;
+  padding: 6px 12px;
+  border-radius: 12px;
+   font-size: 13px;
+}
+.cvPill:hover {
+  background: #e3e6fb;
+  color: #23266b;
+}
+
+.avatarBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f2f3f8;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2b2f7f;
+}
+.avatarBtn:hover {
+  background: #e9ebf6;
+}

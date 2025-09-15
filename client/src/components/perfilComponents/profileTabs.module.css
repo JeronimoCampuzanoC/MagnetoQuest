@@ -1,0 +1,57 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #ffffff;          /* 👈 fondito blanco */
+  padding: 6px 12px;            /* espaciado interno */
+  border-radius: 12px;          /* esquinas redondeadas */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* sombra muy suave */
+  margin-bottom: 30px;
+}
+
+/* Botón base */
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;           /* estilo pill */
+  color: #5b667a;                /* gris medio */
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.tab:hover {
+  color: #2e3a57;
+  background: rgba(90, 102, 122, 0.08);
+}
+
+.tab:focus-visible {
+  outline: 2px solid #cdd6e1;
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+/* Activa */
+.tabActive {
+  background: #babbbd;
+  color: #1f2a44;
+  box-shadow: inset 0 0 0 1px #d6dde6;
+}
+
+/* Icono */
+.icon {
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  opacity: .75;
+}
+
+.tabActive .icon {
+  opacity: .9;
+}

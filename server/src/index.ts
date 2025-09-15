@@ -1,3 +1,4 @@
+import quizRoutes from './routes/quiz';
 import 'reflect-metadata';
 import express from 'express';
 import cors from 'cors';
@@ -10,6 +11,8 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json()); // ← necesario para leer req.body
+app.use('/api/quiz', quizRoutes);
+
 
 app.get('/api/hello', async (_req, res)=>{
   res.json({message:"Hola desde el back"})
