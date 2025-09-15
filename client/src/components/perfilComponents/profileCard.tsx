@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardBody, Button, Input, Label, FormGroup } from "reactstrap";
-import styles from "./profileCarde.module.css";
+import styles from "./profileCard.module.css";
 
 type Props = {
   firstName: string;
