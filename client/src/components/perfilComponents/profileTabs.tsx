@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import ProjectCertificate from "./ProjectCertificate";
 import {
   Nav, NavItem, NavLink,
   TabContent, TabPane,
@@ -77,8 +78,8 @@ const ProfileTabs: React.FC = () => {
           <Card>
             <CardBody>
               <h5 className="mb-3">Proyectos y Certificados</h5>
-              {/* listado de proyectos / uploads de certificados */}
-              <p>Sube certificados, agrega repos, links, etc.</p>
+              {/* Componente que maneja los tabs internos de proyectos/certificados */}
+              <ProjectCertificate />
             </CardBody>
           </Card>
         </TabPane>
