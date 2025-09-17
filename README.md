@@ -4,7 +4,7 @@ MagnetoQuest is a web platform for job seekers, designed to encourage continuous
 
 ## Create .env
 
--DATABASE_URL=postgres://poc_user:poc_pass@localhost:5432/poc_db
+DATABASE_URL=postgres://poc_user:poc_pass@localhost:5432/poc_db
 
 ## Dependencies
 
@@ -19,6 +19,20 @@ lucide-react
 bootstrap
 reactstrap
 react-router-dom
+
+## Setup client
+
+```bash
+npm install
+npm start
+```
+
+## Setup server
+```bash
+npm install
+npm run dev
+```
+
 
 ## Setup database
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styles from "./profileTabs.module.css";
+import ProjectCertificate from "./ProjectCertificate";
 import {
   TabContent, TabPane,
   Card, CardBody
@@ -63,8 +64,8 @@ export default function ProfileTabs() {
           <Card>
             <CardBody>
               <h5 className="mb-3">Proyectos y Certificados</h5>
-              {/* listado de proyectos / uploads de certificados */}
-              <p>Sube certificados, agrega repos, links, etc.</p>
+              {/* Componente que maneja los tabs internos de proyectos/certificados */}
+              <ProjectCertificate />
             </CardBody>
           </Card>
         </TabPane>
