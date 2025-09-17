@@ -1,8 +1,12 @@
 # MagnetoQuest
 
-MagnetoQuest es una plataforma web para candidatos que buscan empleo, diseñada para fomentar el uso continuo mediante gamificación. A diferencia de los servicios centrados solo en el currículum, MagnetoQuest ayuda a mejorar habilidades, fortalecer la hoja de vida y crear conexiones, promoviendo así una experiencia más interactiva y fidelizadora.
+MagnetoQuest is a web platform for job seekers, designed to encourage continuous engagement through gamification. Unlike services that focus solely on resumes, MagnetoQuest helps users improve their skills, strengthen their CV, and build connections, creating a more interactive and engaging experience.
 
-## Dependencias
+## Create .env
+
+-DATABASE_URL=postgres://poc_user:poc_pass@localhost:5432/poc_db
+
+## Dependencies
 
 node.js (npm)
 react
