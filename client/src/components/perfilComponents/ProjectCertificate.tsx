@@ -20,6 +20,17 @@ type InnerTab = "projects" | "certificates";
 const ProjectCertificate: React.FC = () => {
     const [tab, setTab] = useState<InnerTab>("projects");
 
+    // Certificates placeholder data (to be replaced with backend later)
+    type CertificateItem = {
+        id: number;
+        name: string;
+        description: string;
+    };
+    const certificateData: CertificateItem[] = [
+        { id: 1, name: "React", description: "Curso de platzi" },
+        { id: 2, name: "React", description: "Curso de platzi" },
+    ];
+
     return (
         <div>
             {/* Inner tabs */}
@@ -84,8 +95,47 @@ const ProjectCertificate: React.FC = () => {
             )}
 
             {tab === "certificates" && (
-                <div style={{ padding: 24, textAlign: "center", color: "#64748b" }}>
-                    <p>Próximamente podrás gestionar tus certificados aquí.</p>
+                <div style={gridStyle}>
+                    {certificateData.map(c => (
+                        <div key={c.id} style={cardStyle}>
+                            <div style={imageWrapperStyle}>
+                                <img
+                                    src={"../static/cardBackground.png"}
+                                    alt="Certificado placeholder"
+                                    style={imgStyle}
+                                />
+                            </div>
+                            <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{c.name}</h5>
+                            <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{c.description}</p>
+                            <div style={cardFooterStyle}>
+                                <div>
+                                    <button
+                                        style={iconTextBtnStyle()}
+                                        aria-label={`Ver certificado ${c.name}`}
+                                        title="Ver certificado"
+                                    >
+                                        <Eye size={16} />
+                                    </button>
+                                </div>
+                                <div style={{ display: "flex", gap: 8 }}>
+                                    <button
+                                        style={iconTextBtnStyle()}
+                                        aria-label={`Editar certificado ${c.name}`}
+                                        title="Editar certificado"
+                                    >
+                                        <Pencil size={16} />
+                                    </button>
+                                    <button
+                                        style={iconTextBtnStyle()}
+                                        aria-label={`Borrar certificado ${c.name}`}
+                                        title="Borrar certificado"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
