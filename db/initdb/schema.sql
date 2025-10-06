@@ -105,6 +105,17 @@ CREATE TABLE trivia_question (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE trivia_attempt (
+    attempt_id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id UUID NOT NULL REFERENCES app_user (id_app_user) ON DELETE CASCADE,
+    question_id UUID NOT NULL REFERENCES trivia_question (question_id) ON DELETE CASCADE,
+    puntaje INT NOT NULL CHECK (puntaje >= 0),
+    attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, question_id)
+);
+
+
+
 CREATE TABLE notification_log (
     notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
     user_id UUID NOT NULL REFERENCES app_user (id_app_user) ON DELETE CASCADE,
