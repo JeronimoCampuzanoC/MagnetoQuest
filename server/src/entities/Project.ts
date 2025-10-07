@@ -24,6 +24,9 @@ export class Project {
   @Column({ name: 'document', type: 'text', nullable: true })
   document!: string;
 
+  @Column({ name: 'project_date', type: 'date', nullable: true })
+  projectDate!: Date | null;
+
   @ManyToOne(() => AppUser, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: AppUser;

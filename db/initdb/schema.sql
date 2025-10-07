@@ -35,7 +35,8 @@ CREATE TABLE project (
     description TEXT,
     url TEXT,
     preview_image TEXT,
-    document TEXT
+    document TEXT,
+    project_date DATE
 );
 
 CREATE TABLE certificate (
