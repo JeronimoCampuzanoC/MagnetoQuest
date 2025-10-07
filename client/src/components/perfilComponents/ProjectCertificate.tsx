@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
+import Modal from "react-modal";
 
 // Reusable type for a project card
 type ProjectItem = {
@@ -30,6 +31,34 @@ const ProjectCertificate: React.FC = () => {
         { id: 1, name: "React", description: "Curso de platzi" },
         { id: 2, name: "React", description: "Curso de platzi" },
     ];
+
+    const [modalIsOpen, setModalIsOpen] = useState(false);
+    const [formData, setFormData] = useState({ name: '', description: '' });
+
+    const openModal = () => setModalIsOpen(true);
+    const closeModal = () => setModalIsOpen(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+    };
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        // Send data to backend
+        const response = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+        });
+        if (response.ok) {
+            // Handle success
+            closeModal();
+        } else {
+            // Handle error
+            console.error('Failed to submit data');
+        }
+    };
 
     return (
         <div>
@@ -138,6 +167,54 @@ const ProjectCertificate: React.FC = () => {
                     ))}
                 </div>
             )}
+
+            {/* Add Project Button */}
+            <div style={{ marginTop: 20 }}>
+                <button onClick={openModal} style={addButtonStyle}>
+                    Agregar Proyecto
+                </button>
+            </div>
+
+            {/* Add Project Modal */}
+            <Modal
+                isOpen={modalIsOpen}
+                onRequestClose={closeModal}
+                style={modalStyle}
+                ariaHideApp={false}
+            >
+                <h2 style={{ marginBottom: 16 }}>Agregar Nuevo Proyecto</h2>
+                <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <label style={labelStyle}>
+                        Nombre:
+                        <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Descripción:
+                        <textarea
+                            name="description"
+                            value={formData.description}
+                            onChange={handleChange}
+                            required
+                            style={{ ...inputStyle, resize: "none", height: 80 }}
+                        />
+                    </label>
+                    <div style={{ display: "flex", gap: 12 }}>
+                        <button type="submit" style={confirmButtonStyle}>
+                            Confirmar
+                        </button>
+                        <button type="button" onClick={closeModal} style={cancelButtonStyle}>
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };
@@ -239,6 +316,83 @@ const iconTextBtnStyle = (): React.CSSProperties => ({
     transition: "background .15s, transform .15s, box-shadow .15s",
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
 });
+
+// Styles for the modal
+const modalStyle = {
+    content: {
+        top: "50%",
+        left: "50%",
+        right: "auto",
+        bottom: "auto",
+        marginRight: "-50%",
+        transform: "translate(-50%, -50%)",
+        padding: 20,
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+        width: "90%",
+        maxWidth: 500,
+    },
+};
+
+// Styles for form elements
+const labelStyle: React.CSSProperties = {
+    fontSize: 14,
+    color: "#334155",
+    marginBottom: 8,
+};
+
+const inputStyle: React.CSSProperties = {
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid #e2e8f0",
+    fontSize: 14,
+    color: "#334155",
+    outline: "none",
+    transition: "border-color .15s",
+};
+
+const confirmButtonStyle: React.CSSProperties = {
+    background: "#22c55e",
+    color: "#ffffff",
+    border: "none",
+    padding: "10px 20px",
+    fontSize: 14,
+    borderRadius: 8,
+    cursor: "pointer",
+    flex: 1,
+    transition: "background .15s, transform .15s",
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+    background: "#f1f5f9",
+    color: "#334155",
+    border: "1px solid #e2e8f0",
+    padding: "10px 20px",
+    fontSize: 14,
+    borderRadius: 8,
+    cursor: "pointer",
+    flex: 1,
+    transition: "background .15s, transform .15s",
+};
+
+// Add Project button style
+const addButtonStyle: React.CSSProperties = {
+    background: "#2563eb",
+    color: "#ffffff",
+    border: "none",
+    padding: "10px 20px",
+    fontSize: 16,
+    borderRadius: 8,
+    cursor: "pointer",
+    width: "100%",
+    maxWidth: 200,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    transition: "background .15s, transform .15s",
+};
 
 export default ProjectCertificate;
 
