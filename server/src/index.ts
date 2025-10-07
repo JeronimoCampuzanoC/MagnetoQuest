@@ -1,17 +1,16 @@
-import quizRoutes from './routes/quiz';
 import 'reflect-metadata';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { AppDataSource } from './db/data-source';
 import { AppUser } from './entities/AppUser';
+import { Project } from './entities/Project';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json()); // ← necesario para leer req.body
-app.use('/api/quiz', quizRoutes);
 
 
 app.get('/api/hello', async (_req, res)=>{
@@ -48,6 +47,61 @@ app.post('/api/users', async (req, res) => {
     res.status(500).json({ error: 'DB error' });
   }
 });
+
+// CREAR proyecto
+app.post('/api/projects', async (req, res) => {
+  try {
+    const { name, description, userId } = req.body ?? {};
+    
+    // Validate required fields
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name requerido' });
+    }
+    
+    // For now, we'll use a default user ID if not provided
+    // In a real app, you'd get this from authentication
+    const defaultUserId = 'b512eddd-524b-4ec1-8564-f3c7331fe912'; // Replace with actual user logic
+    const projectUserId = userId || defaultUserId;
+    
+    const repo = AppDataSource.getRepository(Project);
+    const project = repo.create({
+      title: name.trim(),
+      description: description?.trim() || '',
+      userId: projectUserId
+    });
+    
+    await repo.save(project);
+    res.status(201).json(project);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// LISTAR proyectos
+app.get('/api/projects', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const repo = AppDataSource.getRepository(Project);
+    
+    let projects;
+    if (userId) {
+      projects = await repo.find({ 
+        where: { userId: userId as string },
+        order: { projectId: 'ASC' }
+      });
+    } else {
+      projects = await repo.find({ order: { projectId: 'ASC' } });
+    }
+    
+    res.json(projects);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+
 
 const PORT = process.env.PORT || 4000;
 

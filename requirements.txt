@@ -10,3 +10,4 @@ bootstrap
 reactstrap
 react-router-dom
 react-scripts
+react-modal
