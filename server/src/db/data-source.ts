@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { AppUser } from '../entities/AppUser';
 import { Project } from '../entities/Project';
+import { Certificate } from '../entities/Certificate';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -10,7 +11,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER ?? 'poc_user',
   password: process.env.DB_PASS ?? 'poc_pass',
   database: process.env.DB_NAME ?? 'poc_db',
-  entities: [AppUser, Project],
+  entities: [AppUser, Project, Certificate],
   synchronize: false, // <- Change to false for production
   logging: true, // <- Enable logging to debug connection issues
   migrations: ['src/migrations/*.ts'],

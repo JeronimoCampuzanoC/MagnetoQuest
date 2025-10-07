@@ -1,62 +1,147 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Modal from "react-modal";
 
 // Reusable type for a project card
 type ProjectItem = {
-    id: number;
-    name: string;
+    projectId: string;
+    title: string;
     description: string;
+    userId: string;
+    url?: string;
+    previewImage?: string;
+    document?: string;
 };
-
-// Placeholder data (to be replaced with backend fetch later)
-const dataFromDB: ProjectItem[] = [
-    { id: 1, name: "E-commerce website", description: "Una tienda online completa desarrollada con Next.js y Stripe para pagos." },
-    { id: 2, name: "E-commerce website", description: "Una tienda online completa desarrollada con Next.js y Stripe para pagos." },
-    { id: 3, name: "E-commerce website", description: "Una tienda online completa desarrollada con Next.js y Stripe para pagos." },
-];
 
 type InnerTab = "projects" | "certificates";
 
 const ProjectCertificate: React.FC = () => {
     const [tab, setTab] = useState<InnerTab>("projects");
+    const [projects, setProjects] = useState<ProjectItem[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Certificates placeholder data (to be replaced with backend later)
+    // Certificates type and state management
     type CertificateItem = {
-        id: number;
-        name: string;
+        certificateId: string;
+        title: string;
         description: string;
+        userId: string;
+        image?: string;
+        validationLink?: string;
     };
-    const certificateData: CertificateItem[] = [
-        { id: 1, name: "React", description: "Curso de platzi" },
-        { id: 2, name: "React", description: "Curso de platzi" },
-    ];
+    const [certificates, setCertificates] = useState<CertificateItem[]>([]);
+    const [certificateLoading, setCertificateLoading] = useState(true);
 
     const [modalIsOpen, setModalIsOpen] = useState(false);
+    const [certificateModalIsOpen, setCertificateModalIsOpen] = useState(false);
     const [formData, setFormData] = useState({ name: '', description: '' });
+    const [certificateFormData, setCertificateFormData] = useState({ name: '', description: '' });
+
+    // Fetch projects from backend
+    const fetchProjects = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                const projectsData = await response.json();
+                setProjects(projectsData);
+            } else {
+                console.error('Failed to fetch projects');
+            }
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch certificates from backend
+    const fetchCertificates = async () => {
+        try {
+            setCertificateLoading(true);
+            const response = await fetch('/api/certificates');
+            if (response.ok) {
+                const certificatesData = await response.json();
+                setCertificates(certificatesData);
+            } else {
+                console.error('Failed to fetch certificates');
+            }
+        } catch (error) {
+            console.error('Error fetching certificates:', error);
+        } finally {
+            setCertificateLoading(false);
+        }
+    };
+
+    // Fetch projects and certificates on component mount
+    useEffect(() => {
+        fetchProjects();
+        fetchCertificates();
+    }, []);
 
     const openModal = () => setModalIsOpen(true);
     const closeModal = () => setModalIsOpen(false);
+
+    const openCertificateModal = () => setCertificateModalIsOpen(true);
+    const closeCertificateModal = () => setCertificateModalIsOpen(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
 
+    const handleCertificateChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setCertificateFormData({ ...certificateFormData, [name]: value });
+    };
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // Send data to backend
-        const response = await fetch('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-        });
-        if (response.ok) {
-            // Handle success
-            closeModal();
-        } else {
-            // Handle error
-            console.error('Failed to submit data');
+        try {
+            // Send data to backend
+            const response = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            if (response.ok) {
+                // Handle success - refresh projects list and close modal
+                await fetchProjects();
+                setFormData({ name: '', description: '' }); // Reset form
+                closeModal();
+            } else {
+                // Handle error
+                console.error('Failed to submit data');
+                alert('Error al crear el proyecto');
+            }
+        } catch (error) {
+            console.error('Error submitting project:', error);
+            alert('Error al crear el proyecto');
+        }
+    };
+
+    const handleCertificateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        try {
+            // Send data to backend
+            const response = await fetch('/api/certificates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(certificateFormData),
+            });
+            if (response.ok) {
+                // Handle success - refresh certificates list and close modal
+                await fetchCertificates();
+                setCertificateFormData({ name: '', description: '' }); // Reset form
+                closeCertificateModal();
+            } else {
+                // Handle error
+                console.error('Failed to submit certificate');
+                alert('Error al crear el certificado');
+            }
+        } catch (error) {
+            console.error('Error submitting certificate:', error);
+            alert('Error al crear el certificado');
         }
     };
 
@@ -80,99 +165,117 @@ const ProjectCertificate: React.FC = () => {
 
             {tab === "projects" && (
                 <div style={gridStyle}>
-                    {dataFromDB.map(p => (
-                        <div key={p.id} style={cardStyle}>
-                            <div style={imageWrapperStyle}>
-                                <img
-                                    src={"../static/cardBackground.png"}
-                                    alt="Proyecto placeholder"
-                                    style={imgStyle}
-                                />
-                            </div>
-                            <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{p.name}</h5>
-                            <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{p.description}</p>
-                            <div style={cardFooterStyle}>
-                                <div>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Ver proyecto ${p.name}`}
-                                        title="Ver proyecto"
-                                    >
-                                        <Eye size={16} />
-                                    </button>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: 20 }}>Cargando proyectos...</div>
+                    ) : projects.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>No hay proyectos aún. ¡Agrega tu primer proyecto!</div>
+                    ) : (
+                        projects.map(p => (
+                            <div key={p.projectId} style={cardStyle}>
+                                <div style={imageWrapperStyle}>
+                                    <img
+                                        src={p.previewImage || "../static/cardBackground.png"}
+                                        alt="Proyecto placeholder"
+                                        style={imgStyle}
+                                    />
                                 </div>
-                                <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Editar proyecto ${p.name}`}
-                                        title="Editar proyecto"
-                                    >
-                                        <Pencil size={16} />
-                                    </button>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Borrar proyecto ${p.name}`}
-                                        title="Borrar proyecto"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{p.title}</h5>
+                                <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{p.description}</p>
+                                <div style={cardFooterStyle}>
+                                    <div>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Ver proyecto ${p.title}`}
+                                            title="Ver proyecto"
+                                        >
+                                            <Eye size={16} />
+                                        </button>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Editar proyecto ${p.title}`}
+                                            title="Editar proyecto"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Borrar proyecto ${p.title}`}
+                                            title="Borrar proyecto"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             )}
 
             {tab === "certificates" && (
                 <div style={gridStyle}>
-                    {certificateData.map(c => (
-                        <div key={c.id} style={cardStyle}>
-                            <div style={imageWrapperStyle}>
-                                <img
-                                    src={"../static/cardBackground.png"}
-                                    alt="Certificado placeholder"
-                                    style={imgStyle}
-                                />
-                            </div>
-                            <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{c.name}</h5>
-                            <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{c.description}</p>
-                            <div style={cardFooterStyle}>
-                                <div>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Ver certificado ${c.name}`}
-                                        title="Ver certificado"
-                                    >
-                                        <Eye size={16} />
-                                    </button>
+                    {certificateLoading ? (
+                        <div style={{ textAlign: 'center', padding: 20 }}>Cargando certificados...</div>
+                    ) : certificates.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>No hay certificados aún. ¡Agrega tu primer certificado!</div>
+                    ) : (
+                        certificates.map(c => (
+                            <div key={c.certificateId} style={cardStyle}>
+                                <div style={imageWrapperStyle}>
+                                    <img
+                                        src={c.image || "../static/cardBackground.png"}
+                                        alt="Certificado placeholder"
+                                        style={imgStyle}
+                                    />
                                 </div>
-                                <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Editar certificado ${c.name}`}
-                                        title="Editar certificado"
-                                    >
-                                        <Pencil size={16} />
-                                    </button>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Borrar certificado ${c.name}`}
-                                        title="Borrar certificado"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{c.title}</h5>
+                                <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{c.description}</p>
+                                <div style={cardFooterStyle}>
+                                    <div>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Ver certificado ${c.title}`}
+                                            title="Ver certificado"
+                                        >
+                                            <Eye size={16} />
+                                        </button>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Editar certificado ${c.title}`}
+                                            title="Editar certificado"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Borrar certificado ${c.title}`}
+                                            title="Borrar certificado"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             )}
 
-            {/* Add Project Button */}
+            {/* Add Project/Certificate Button */}
             <div style={{ marginTop: 20 }}>
-                <button onClick={openModal} style={addButtonStyle}>
-                    Agregar Proyecto
-                </button>
+                {tab === "projects" ? (
+                    <button onClick={openModal} style={addButtonStyle}>
+                        Agregar Proyecto
+                    </button>
+                ) : (
+                    <button onClick={openCertificateModal} style={addButtonStyle}>
+                        Agregar Certificado
+                    </button>
+                )}
             </div>
 
             {/* Add Project Modal */}
@@ -210,6 +313,47 @@ const ProjectCertificate: React.FC = () => {
                             Confirmar
                         </button>
                         <button type="button" onClick={closeModal} style={cancelButtonStyle}>
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Add Certificate Modal */}
+            <Modal
+                isOpen={certificateModalIsOpen}
+                onRequestClose={closeCertificateModal}
+                style={modalStyle}
+                ariaHideApp={false}
+            >
+                <h2 style={{ marginBottom: 16 }}>Agregar Nuevo Certificado</h2>
+                <form onSubmit={handleCertificateSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <label style={labelStyle}>
+                        Nombre:
+                        <input
+                            type="text"
+                            name="name"
+                            value={certificateFormData.name}
+                            onChange={handleCertificateChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Descripción:
+                        <textarea
+                            name="description"
+                            value={certificateFormData.description}
+                            onChange={handleCertificateChange}
+                            required
+                            style={{ ...inputStyle, resize: "none", height: 80 }}
+                        />
+                    </label>
+                    <div style={{ display: "flex", gap: 12 }}>
+                        <button type="submit" style={confirmButtonStyle}>
+                            Confirmar
+                        </button>
+                        <button type="button" onClick={closeCertificateModal} style={cancelButtonStyle}>
                             Cancelar
                         </button>
                     </div>

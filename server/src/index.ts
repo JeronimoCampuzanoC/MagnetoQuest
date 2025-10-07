@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { AppDataSource } from './db/data-source';
 import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
+import { Certificate } from './entities/Certificate';
 
 dotenv.config();
 
@@ -95,6 +96,59 @@ app.get('/api/projects', async (req, res) => {
     }
     
     res.json(projects);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// CREAR certificado
+app.post('/api/certificates', async (req, res) => {
+  try {
+    const { name, description, userId } = req.body ?? {};
+    
+    // Validate required fields
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name requerido' });
+    }
+    
+    // For now, we'll use a default user ID if not provided
+    // In a real app, you'd get this from authentication
+    const defaultUserId = 'b512eddd-524b-4ec1-8564-f3c7331fe912'; // Replace with actual user logic
+    const certificateUserId = userId || defaultUserId;
+    
+    const repo = AppDataSource.getRepository(Certificate);
+    const certificate = repo.create({
+      title: name.trim(),
+      description: description?.trim() || '',
+      userId: certificateUserId
+    });
+    
+    await repo.save(certificate);
+    res.status(201).json(certificate);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// LISTAR certificados
+app.get('/api/certificates', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const repo = AppDataSource.getRepository(Certificate);
+    
+    let certificates;
+    if (userId) {
+      certificates = await repo.find({ 
+        where: { userId: userId as string },
+        order: { certificateId: 'ASC' }
+      });
+    } else {
+      certificates = await repo.find({ order: { certificateId: 'ASC' } });
+    }
+    
+    res.json(certificates);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'DB error' });
