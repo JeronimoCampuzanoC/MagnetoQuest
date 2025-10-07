@@ -52,7 +52,7 @@ app.post('/api/users', async (req, res) => {
 // CREAR proyecto
 app.post('/api/projects', async (req, res) => {
   try {
-    const { name, description, userId } = req.body ?? {};
+    const { name, description, projectDate, url, userId } = req.body ?? {};
     
     // Validate required fields
     if (typeof name !== 'string' || !name.trim()) {
@@ -61,15 +61,20 @@ app.post('/api/projects', async (req, res) => {
     
     // For now, we'll use a default user ID if not provided
     // In a real app, you'd get this from authentication
-    const defaultUserId = 'b512eddd-524b-4ec1-8564-f3c7331fe912'; // Replace with actual user logic
+    const defaultUserId = 'd6d6389b-783e-4a44-9e47-fbdaa0201e4d'; // Replace with actual user logic
     const projectUserId = userId || defaultUserId;
     
     const repo = AppDataSource.getRepository(Project);
     const project = repo.create({
       title: name.trim(),
       description: description?.trim() || '',
+      url: url?.trim() || null,
       userId: projectUserId
     });
+    
+    if (projectDate) {
+      project.projectDate = new Date(projectDate);
+    }
     
     await repo.save(project);
     res.status(201).json(project);
@@ -102,6 +107,70 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
+// ACTUALIZAR proyecto
+app.put('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, projectDate, url } = req.body ?? {};
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID de proyecto requerido' });
+    }
+    
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name requerido' });
+    }
+    
+    const repo = AppDataSource.getRepository(Project);
+    const project = await repo.findOne({ where: { projectId: id } });
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+    
+    // Update project fields
+    project.title = name.trim();
+    project.description = description?.trim() || '';
+    project.url = url?.trim() || null;
+    
+    if (projectDate) {
+      project.projectDate = new Date(projectDate);
+    } else {
+      project.projectDate = null;
+    }
+    
+    await repo.save(project);
+    res.json(project);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// ELIMINAR proyecto
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID de proyecto requerido' });
+    }
+    
+    const repo = AppDataSource.getRepository(Project);
+    const project = await repo.findOne({ where: { projectId: id } });
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+    
+    await repo.remove(project);
+    res.json({ message: 'Proyecto eliminado correctamente' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 // CREAR certificado
 app.post('/api/certificates', async (req, res) => {
   try {
@@ -114,7 +183,7 @@ app.post('/api/certificates', async (req, res) => {
     
     // For now, we'll use a default user ID if not provided
     // In a real app, you'd get this from authentication
-    const defaultUserId = 'b512eddd-524b-4ec1-8564-f3c7331fe912'; // Replace with actual user logic
+    const defaultUserId = 'd6d6389b-783e-4a44-9e47-fbdaa0201e4d'; // Replace with actual user logic
     const certificateUserId = userId || defaultUserId;
     
     const repo = AppDataSource.getRepository(Certificate);
@@ -149,6 +218,63 @@ app.get('/api/certificates', async (req, res) => {
     }
     
     res.json(certificates);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// ACTUALIZAR certificado
+app.put('/api/certificates/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body ?? {};
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID de certificado requerido' });
+    }
+    
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name requerido' });
+    }
+    
+    const repo = AppDataSource.getRepository(Certificate);
+    const certificate = await repo.findOne({ where: { certificateId: id } });
+    
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificado no encontrado' });
+    }
+    
+    // Update certificate fields
+    certificate.title = name.trim();
+    certificate.description = description?.trim() || '';
+    
+    await repo.save(certificate);
+    res.json(certificate);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// ELIMINAR certificado
+app.delete('/api/certificates/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID de certificado requerido' });
+    }
+    
+    const repo = AppDataSource.getRepository(Certificate);
+    const certificate = await repo.findOne({ where: { certificateId: id } });
+    
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificado no encontrado' });
+    }
+    
+    await repo.remove(certificate);
+    res.json({ message: 'Certificado eliminado correctamente' });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'DB error' });
