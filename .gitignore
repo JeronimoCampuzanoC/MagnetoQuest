@@ -47,3 +47,6 @@ coverage/
 # Misc
 *.swp
 *.swo
+
+#typeorm
+server/node_modules/typeorm/
