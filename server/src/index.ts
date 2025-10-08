@@ -24,7 +24,7 @@ app.get('/api/hello', async (_req, res)=>{
 app.get('/api/appusers', async (_req, res) => {
   try {
     const repo = AppDataSource.getRepository(AppUser);
-    const users = await repo.find({ order: { id: 'ASC' } });
+    const users = await repo.find({ order: { id_app_user: 'ASC' } });
     res.json(users);
   } catch (e) {
     console.error(e);
@@ -69,11 +69,11 @@ app.post('/api/projects', async (req, res) => {
       title: name.trim(),
       description: description?.trim() || '',
       url: url?.trim() || null,
-      userId: projectUserId
+      user_id: projectUserId
     });
     
     if (projectDate) {
-      project.projectDate = new Date(projectDate);
+      project.project_date = new Date(projectDate);
     }
     
     await repo.save(project);
@@ -93,11 +93,11 @@ app.get('/api/projects', async (req, res) => {
     let projects;
     if (userId) {
       projects = await repo.find({ 
-        where: { userId: userId as string },
-        order: { projectId: 'ASC' }
+        where: { user_id: userId as string },
+        order: { project_id: 'ASC' }
       });
     } else {
-      projects = await repo.find({ order: { projectId: 'ASC' } });
+      projects = await repo.find({ order: { project_id: 'ASC' } });
     }
     
     res.json(projects);
@@ -122,7 +122,7 @@ app.put('/api/projects/:id', async (req, res) => {
     }
     
     const repo = AppDataSource.getRepository(Project);
-    const project = await repo.findOne({ where: { projectId: id } });
+    const project = await repo.findOne({ where: { project_id: id } });
     
     if (!project) {
       return res.status(404).json({ error: 'Proyecto no encontrado' });
@@ -134,9 +134,9 @@ app.put('/api/projects/:id', async (req, res) => {
     project.url = url?.trim() || null;
     
     if (projectDate) {
-      project.projectDate = new Date(projectDate);
+      project.project_date = new Date(projectDate);
     } else {
-      project.projectDate = null;
+      project.project_date = null;
     }
     
     await repo.save(project);
@@ -157,7 +157,7 @@ app.delete('/api/projects/:id', async (req, res) => {
     }
     
     const repo = AppDataSource.getRepository(Project);
-    const project = await repo.findOne({ where: { projectId: id } });
+    const project = await repo.findOne({ where: { project_id: id } });
     
     if (!project) {
       return res.status(404).json({ error: 'Proyecto no encontrado' });
@@ -190,7 +190,7 @@ app.post('/api/certificates', async (req, res) => {
     const certificate = repo.create({
       title: name.trim(),
       description: description?.trim() || '',
-      userId: certificateUserId
+      user_id: certificateUserId
     });
     
     await repo.save(certificate);
@@ -210,11 +210,11 @@ app.get('/api/certificates', async (req, res) => {
     let certificates;
     if (userId) {
       certificates = await repo.find({ 
-        where: { userId: userId as string },
-        order: { certificateId: 'ASC' }
+        where: { user_id: userId as string },
+        order: { certificate_id: 'ASC' }
       });
     } else {
-      certificates = await repo.find({ order: { certificateId: 'ASC' } });
+      certificates = await repo.find({ order: { certificate_id: 'ASC' } });
     }
     
     res.json(certificates);
@@ -239,7 +239,7 @@ app.put('/api/certificates/:id', async (req, res) => {
     }
     
     const repo = AppDataSource.getRepository(Certificate);
-    const certificate = await repo.findOne({ where: { certificateId: id } });
+    const certificate = await repo.findOne({ where: { certificate_id: id } });
     
     if (!certificate) {
       return res.status(404).json({ error: 'Certificado no encontrado' });
@@ -267,7 +267,7 @@ app.delete('/api/certificates/:id', async (req, res) => {
     }
     
     const repo = AppDataSource.getRepository(Certificate);
-    const certificate = await repo.findOne({ where: { certificateId: id } });
+    const certificate = await repo.findOne({ where: { certificate_id: id } });
     
     if (!certificate) {
       return res.status(404).json({ error: 'Certificado no encontrado' });
