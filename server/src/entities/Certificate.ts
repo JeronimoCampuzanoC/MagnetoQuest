@@ -1,27 +1,28 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { AppUser } from './AppUser';
 
-@Entity('certificate')
+@Entity({ name: 'certificate' })
 export class Certificate {
   @PrimaryGeneratedColumn('uuid', { name: 'certificate_id' })
-  certificateId!: string;
+  certificate_id!: string;
 
+  @Index()
   @Column({ name: 'user_id', type: 'uuid' })
-  userId!: string;
+  user_id!: string;
+
+  @ManyToOne(() => AppUser, (u) => u.certificates, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id', referencedColumnName: 'id_app_user' })
+  user!: AppUser;
 
   @Column({ name: 'title', type: 'text' })
   title!: string;
 
   @Column({ name: 'description', type: 'text', nullable: true })
-  description!: string;
+  description!: string | null;
 
   @Column({ name: 'image', type: 'text', nullable: true })
-  image!: string;
+  image!: string | null;
 
   @Column({ name: 'validation_link', type: 'text', nullable: true })
-  validationLink!: string;
-
-  @ManyToOne(() => AppUser, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
-  user!: AppUser;
+  validation_link!: string | null;
 }
