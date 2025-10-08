@@ -6,6 +6,14 @@ import { AppDataSource } from './db/data-source';
 import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
 import { Certificate } from './entities/Certificate';
+import { Mission } from './entities/Mission';
+import { Badge } from './entities/Badge';
+import { BadgeProgress } from './entities/BadgeProgress';
+import { NotificationLog } from './entities/NotificationLog';
+import { Resume } from './entities/Resume';
+import { TriviaAttempt } from './entities/TriviaAttempt';
+import { TriviaQuestion } from './entities/TriviaQuestion';
+import { UserMissionProgress } from './entities/UserMissionProgress';
 
 dotenv.config();
 
@@ -19,6 +27,26 @@ app.get('/api/hello', async (_req, res)=>{
   console.log("Mensaje enviado");
 });
 
+
+// LISTAR misiones
+app.get('/users/:userId/missions-in-progress', async (req, res) => {
+  const { userId } = req.params;
+
+  const qb = AppDataSource.getRepository(UserMissionProgress)
+    .createQueryBuilder('ump')
+    .innerJoin('ump.mission', 'm')
+    .select([
+      'm.mission_id AS id',
+      'm.title       AS text',
+      "CASE WHEN ump.status = 'in_progress' THEN TRUE ELSE FALSE END AS active",
+    ])
+    .where('ump.user_id = :userId', { userId })
+    .andWhere("ump.status = 'in_progress'")      // ← solo en progreso
+    .orderBy('m.created_at', 'DESC');
+
+  const result = await qb.getRawMany(); // ya sale con { id, text, active }
+  res.json(result);
+});
 
 // LISTAR usuarios
 app.get('/api/appusers', async (_req, res) => {
