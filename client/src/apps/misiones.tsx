@@ -1,7 +1,9 @@
+import { Router } from 'express';
 import styles from "./misiones.module.css"
 import ProgressBarSteps from "../components/misionesComponents/progressBar"
 import OptionGrid, { OptionItem } from "../components/misionesComponents/optionGrid"
 import Carousel from "../components/misionesComponents/carousel"
+const router = Router();
 
 const dataFromDB: OptionItem[] = [
     { id: 1, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: true },

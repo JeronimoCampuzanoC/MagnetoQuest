@@ -2,9 +2,9 @@ import React from "react";
 import styles from "./optionGrid.module.css";
 
 export type OptionItem = {
-    id: number | string;
-    text: string;
-    active: boolean;   // ← viene de la BD
+  id: number;        // usa el UUID de la misión
+  text: string;      // el título (o la descripción si prefieres)
+  active: boolean;   // true si está en progreso
 };
 
 type Props = {
