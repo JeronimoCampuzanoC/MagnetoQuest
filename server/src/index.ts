@@ -4,7 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { AppDataSource } from './db/data-source';
-import { User } from './entities/User';
+import { Usuario } from './entities/Usuario';
 
 dotenv.config();
 
@@ -23,8 +23,20 @@ app.get('/api/hello', async (_req, res)=>{
 // LISTAR usuarios
 app.get('/api/users', async (_req, res) => {
   try {
-    const repo = AppDataSource.getRepository(User);
-    const users = await repo.find({ order: { id: 'ASC' } });
+    const repo = AppDataSource.getRepository(Usuario);
+    const users = await repo.find({ order: { id_usuario: 'ASC' } });
+    res.json(users);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// LISTAR misiones
+app.get('/api/misions', async (_req, res) => {
+  try {
+    const repo = AppDataSource.getRepository(Usuario);
+    const users = await repo.find({ order: { id_usuario: 'ASC' } });
     res.json(users);
   } catch (e) {
     console.error(e);
@@ -39,8 +51,8 @@ app.post('/api/users', async (req, res) => {
     if (typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'name requerido' });
     }
-    const repo = AppDataSource.getRepository(User);
-    const user = repo.create({ name: name.trim() });
+    const repo = AppDataSource.getRepository(Usuario);
+    const user = repo.create({ nombre: name.trim() });
     await repo.save(user);
     res.status(201).json(user);
   } catch (e) {
