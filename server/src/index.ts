@@ -5,12 +5,13 @@ import dotenv from 'dotenv';
 import { AppDataSource } from './db/data-source';
 import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
+import triviaProxyRoutes from './routes/trivia-proxy.routes';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // ← necesario para leer req.body
+app.use(express.json());
 
 
 app.get('/api/hello', async (_req, res)=>{
@@ -60,7 +61,7 @@ app.post('/api/projects', async (req, res) => {
     
     // For now, we'll use a default user ID if not provided
     // In a real app, you'd get this from authentication
-    const defaultUserId = 'b512eddd-524b-4ec1-8564-f3c7331fe912'; // Replace with actual user logic
+    const defaultUserId = 'b512eddd-524b-4ec1-8564-f3c7331fe912';
     const projectUserId = userId || defaultUserId;
     
     const repo = AppDataSource.getRepository(Project);
@@ -101,6 +102,8 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
+// 👇 NUEVA RUTA PROXY PARA TRIVIA
+app.use('/api/trivia', triviaProxyRoutes);
 
 
 const PORT = process.env.PORT || 4000;
@@ -115,11 +118,3 @@ AppDataSource.initialize()
     console.error('❌ Error al conectar TypeORM', err);
     process.exit(1);
   });
-
-/* 👇 SI SIRVES FRONT ESTÁTICO, PONLO AL FINAL (después de las rutas /api)
-import path from 'path'; import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url); const __dirname = path.dirname(__filename);
-const clientDir = path.join(__dirname, '..', '..', 'client');
-app.use(express.static(clientDir));
-app.get('*', (_req, res) => res.sendFile(path.join(clientDir, 'index.html')));
-*/

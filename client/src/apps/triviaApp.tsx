@@ -1,138 +1,387 @@
-import { useMemo, useState } from "react";
-import { startTrivia, nextTriviaQuestion, gradeTrivia, type StartRes, type GradeRes } from "../api/trivia";
+import { useState } from 'react';
+import styles from './triviaApp.module.css';
+import { TriviaService, TriviaTopicConfig, TriviaQuestion, EvaluationResult, TriviaProgress, TriviaResults } from '../services/triviaService';
 
-type Area = "coding" | "system_design" | "behavioral";
-type Nivel = "facil" | "medio" | "dificil";
+type Screen = 'start' | 'question' | 'results';
 
-export default function TriviaPage() {
-  const [area, setArea] = useState<Area>("coding");
-  const [nivel, setNivel] = useState<Nivel>("facil");
-
-  const [pregunta, setPregunta] = useState("");
-  const [nivelActual, setNivelActual] = useState<Nivel>("facil");
-  const [respuesta, setRespuesta] = useState("");
-  const [resultado, setResultado] = useState<GradeRes | null>(null);
-
+export default function TriviaApp() {
+  // Estados principales
+  const [screen, setScreen] = useState<Screen>('start');
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // id único por pestaña
-  const sessionId = useMemo(
-    () => (crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)),
-    []
+  // Estados de la trivia
+  const [sessionId, setSessionId] = useState<string>('');
+  const [currentQuestion, setCurrentQuestion] = useState<TriviaQuestion | null>(null);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  const [progress, setProgress] = useState<TriviaProgress | null>(null);
+  const [results, setResults] = useState<TriviaResults | null>(null);
+
+  // Estados del formulario inicial
+  const [topicName, setTopicName] = useState('Programación Backend');
+  const [topicDescription, setTopicDescription] = useState(
+    'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño, optimización de bases de datos, APIs RESTful, microservicios, y mejores prácticas de desarrollo.'
   );
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [totalQuestions, setTotalQuestions] = useState(5);
 
-  async function handleStart() {
-    try {
-      setErr(null); setLoading(true); setResultado(null); setRespuesta("");
-      const r: StartRes = await startTrivia(sessionId, area, nivel);
-      setPregunta(r.pregunta); setNivelActual(r.nivel as Nivel);
-    } catch (e: any) { setErr(e.message || "Error al iniciar"); }
-    finally { setLoading(false); }
-  }
+  // Iniciar trivia
+  const handleStartTrivia = async () => {
+    setLoading(true);
+    setError(null);
 
-  async function handleGrade() {
-    if (!pregunta || !respuesta.trim()) { setErr("Escribe tu respuesta."); return; }
     try {
-      setErr(null); setLoading(true);
-      const r = await gradeTrivia(sessionId, pregunta, respuesta);
-      setResultado(r);
-    } catch (e: any) { setErr(e.message || "Error al evaluar"); }
-    finally { setLoading(false); }
-  }
+      const topicConfig: TriviaTopicConfig = {
+        name: topicName,
+        description: topicDescription,
+        difficulty: difficulty,
+      };
 
-  async function handleNext() {
+      const response = await TriviaService.startTrivia(topicConfig, totalQuestions);
+
+      setSessionId(response.sessionId);
+      setCurrentQuestion(response.firstQuestion);
+      setProgress(response.progress);
+      setScreen('question');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al iniciar la trivia');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Enviar respuesta
+  const handleSubmitAnswer = async () => {
+    if (!userAnswer.trim()) {
+      setError('Por favor escribe una respuesta');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
     try {
-      setErr(null); setLoading(true); setResultado(null); setRespuesta("");
-      const r = await nextTriviaQuestion(sessionId);
-      setPregunta(r.pregunta); setNivelActual(r.nivel as Nivel);
-    } catch (e: any) { setErr(e.message || "Error al pedir la siguiente pregunta"); }
-    finally { setLoading(false); }
-  }
+      const response = await TriviaService.submitAnswer(sessionId, userAnswer);
+
+      setEvaluation(response.evaluation);
+      setProgress(response.progress);
+
+      // Si la trivia está completa, obtener resultados
+      if (response.isComplete) {
+        const finalResults = await TriviaService.getResults(sessionId);
+        setResults(finalResults);
+        setScreen('results');
+      } else {
+        // Si no está completa, preparar para la siguiente pregunta
+        setCurrentQuestion(response.nextQuestion);
+      }
+
+      setUserAnswer('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al evaluar la respuesta');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Continuar a la siguiente pregunta
+  const handleNextQuestion = () => {
+    setEvaluation(null);
+  };
+
+  // Reiniciar trivia
+  const handleRestart = () => {
+    setScreen('start');
+    setSessionId('');
+    setCurrentQuestion(null);
+    setUserAnswer('');
+    setEvaluation(null);
+    setProgress(null);
+    setResults(null);
+    setError(null);
+  };
+
+  // Calcular porcentaje de progreso
+  const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h1 style={{ marginTop: 0 }}>Trivia de Entrevistas</h1>
-        <p style={{ opacity: 0.7 }}>Sesión: <code>{sessionId}</code></p>
-
-        {!pregunta ? (
-          <>
-            <div style={styles.row}>
-              <label>Área:&nbsp;</label>
-              <select value={area} onChange={(e) => setArea(e.target.value as Area)}>
-                <option value="coding">coding</option>
-                <option value="system_design">system_design</option>
-                <option value="behavioral">behavioral</option>
-              </select>
-              <span style={{ width: 12 }} />
-              <label>Nivel:&nbsp;</label>
-              <select value={nivel} onChange={(e) => setNivel(e.target.value as Nivel)}>
-                <option value="facil">facil</option>
-                <option value="medio">medio</option>
-                <option value="dificil">dificil</option>
-              </select>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        {/* PANTALLA INICIAL */}
+        {screen === 'start' && (
+          <div className={styles.startScreen}>
+            <div className={styles.header}>
+              <h1 className={styles.title}>🎯 MagnetoQuest Trivia</h1>
+              <p className={styles.subtitle}>
+                Pon a prueba tus conocimientos con nuestra IA
+              </p>
             </div>
-            <button onClick={handleStart} disabled={loading} style={styles.btnPrimary}>
-              {loading ? "Cargando…" : "Comenzar"}
-            </button>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>Nivel actual: {nivelActual}</div>
-            <h2 style={{ margin: "8px 0" }}>{pregunta}</h2>
 
-            <textarea
-              placeholder="Escribe tu respuesta…"
-              value={respuesta}
-              onChange={(e) => setRespuesta(e.target.value)}
-              rows={6}
-              style={styles.textarea}
-            />
-            <div style={styles.row}>
-              <button onClick={handleGrade} disabled={loading || !respuesta.trim()} style={styles.btnPrimary}>
-                {loading ? "Enviando…" : "Enviar respuesta"}
-              </button>
-              <button onClick={handleNext} disabled={loading} style={styles.btnGhost}>
-                Siguiente pregunta
-              </button>
+            {error && (
+              <div className={styles.error}>
+                <div className={styles.errorTitle}>❌ Error</div>
+                <div>{error}</div>
+              </div>
+            )}
+
+            <div className={styles.configForm}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Tema de la trivia</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  value={topicName}
+                  onChange={(e) => setTopicName(e.target.value)}
+                  placeholder="Ej: Programación Backend"
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Descripción detallada</label>
+                <textarea
+                  className={styles.formTextarea}
+                  value={topicDescription}
+                  onChange={(e) => setTopicDescription(e.target.value)}
+                  placeholder="Describe qué tipo de preguntas quieres..."
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Dificultad</label>
+                <select
+                  className={styles.formSelect}
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                >
+                  <option value="easy">Fácil</option>
+                  <option value="medium">Media</option>
+                  <option value="hard">Difícil</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Número de preguntas</label>
+                <select
+                  className={styles.formSelect}
+                  value={totalQuestions}
+                  onChange={(e) => setTotalQuestions(Number(e.target.value))}
+                >
+                  <option value="3">3 preguntas</option>
+                  <option value="5">5 preguntas</option>
+                  <option value="7">7 preguntas</option>
+                  <option value="10">10 preguntas</option>
+                </select>
+              </div>
+
+              <div className={styles.buttonContainer}>
+                <button
+                  className={`${styles.button} ${styles.buttonPrimary}`}
+                  onClick={handleStartTrivia}
+                  disabled={loading}
+                >
+                  {loading ? 'Generando...' : '🚀 Comenzar Trivia'}
+                </button>
+              </div>
             </div>
-          </>
+          </div>
         )}
 
-        {resultado && (
-          <div style={styles.feedback}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>
-              {resultado.resultado.correcto ? "✅ Correcto" : "❌ Incorrecto"} ·
-              Score: {resultado.resultado.score.toFixed(2)} · Progreso: {resultado.score}
+        {/* PANTALLA DE PREGUNTAS */}
+        {screen === 'question' && currentQuestion && progress && (
+          <div>
+            <div className={styles.header}>
+              <h1 className={styles.title}>🎯 MagnetoQuest Trivia</h1>
+              <p className={styles.subtitle}>{topicName}</p>
             </div>
-            <div><strong>Feedback:</strong> {resultado.resultado.feedback_breve}</div>
-            <div style={{ marginTop: 8 }}>
-              <strong>Referencia:</strong>
-              <div style={styles.ref}>{resultado.resultado.modelo_referencia}</div>
+
+            {/* Barra de progreso */}
+            <div className={styles.progressContainer}>
+              <div className={styles.progressBar}>
+                <div
+                  className={styles.progressFill}
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+              <div className={styles.progressText}>
+                <span>
+                  Pregunta {progress.current} de {progress.total}
+                </span>
+                <span>
+                  Score: {progress.score}/{progress.maxScore} ({progress.percentage}%)
+                </span>
+              </div>
             </div>
-            {!!resultado.resultado.puntos_clave_faltantes?.length && (
-              <ul style={{ marginTop: 8 }}>
-                {resultado.resultado.puntos_clave_faltantes.map((p, i) => <li key={i}>{p}</li>)}
-              </ul>
+
+            {error && (
+              <div className={styles.error}>
+                <div className={styles.errorTitle}>❌ Error</div>
+                <div>{error}</div>
+              </div>
+            )}
+
+            {/* Feedback de la respuesta anterior */}
+            {evaluation && (
+              <div
+                className={`${styles.feedbackCard} ${
+                  evaluation.isCorrect ? styles.feedbackCorrect : styles.feedbackIncorrect
+                }`}
+              >
+                <div className={styles.feedbackHeader}>
+                  <span className={styles.feedbackIcon}>
+                    {evaluation.isCorrect ? '✅' : '❌'}
+                  </span>
+                  <span className={styles.feedbackTitle}>
+                    {evaluation.isCorrect ? '¡Correcto!' : 'Incorrecto'}
+                  </span>
+                </div>
+                <div className={styles.feedbackScore}>
+                  Puntuación: {evaluation.score}/10 | Precisión: {evaluation.accuracy}%
+                </div>
+                <div className={styles.feedbackText}>{evaluation.feedback}</div>
+                <div className={styles.expectedAnswer}>
+                  <span className={styles.expectedAnswerLabel}>
+                    💡 Respuesta esperada:
+                  </span>
+                  <div className={styles.expectedAnswerText}>
+                    {evaluation.expectedAnswer}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pregunta actual */}
+            {!evaluation && (
+              <>
+                <div className={styles.questionCard}>
+                  <div className={styles.questionNumber}>
+                    Pregunta {currentQuestion.questionNumber} - Dificultad:{' '}
+                    {currentQuestion.difficulty}
+                  </div>
+                  <div className={styles.questionText}>{currentQuestion.question}</div>
+                  {currentQuestion.hint && (
+                    <div className={styles.hint}>
+                      <span className={styles.hintIcon}>💡</span>
+                      <span>{currentQuestion.hint}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.answerContainer}>
+                  <label className={styles.answerLabel}>Tu respuesta:</label>
+                  <textarea
+                    className={styles.answerTextarea}
+                    value={userAnswer}
+                    onChange={(e) => setUserAnswer(e.target.value)}
+                    placeholder="Escribe tu respuesta detallada aquí..."
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className={styles.buttonContainer}>
+                  <button
+                    className={`${styles.button} ${styles.buttonPrimary}`}
+                    onClick={handleSubmitAnswer}
+                    disabled={loading || !userAnswer.trim()}
+                  >
+                    {loading ? 'Evaluando...' : '📤 Enviar Respuesta'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Botón para continuar */}
+            {evaluation && (
+              <div className={styles.buttonContainer}>
+                <button
+                  className={`${styles.button} ${styles.buttonPrimary}`}
+                  onClick={handleNextQuestion}
+                >
+                  ➡️ Continuar
+                </button>
+              </div>
             )}
           </div>
         )}
 
-        {err && <div style={styles.error}>⚠️ {err}</div>}
+        {/* PANTALLA DE RESULTADOS */}
+        {screen === 'results' && results && (
+          <div className={styles.resultsScreen}>
+            <div className={styles.header}>
+              <h1 className={styles.title}>🏆 ¡Trivia Completada!</h1>
+            </div>
+
+            <div className={styles.resultsScore}>
+              {results.percentage}%
+            </div>
+            <div className={styles.resultsTitle}>
+              {results.totalScore} de {results.maxScore} puntos
+            </div>
+
+            <div className={styles.statsGrid}>
+              <div className={styles.statCard}>
+                <div className={styles.statValue}>{results.summary.correctAnswers}</div>
+                <div className={styles.statLabel}>Correctas</div>
+              </div>
+              <div className={styles.statCard}>
+                <div className={styles.statValue}>{results.summary.incorrectAnswers}</div>
+                <div className={styles.statLabel}>Incorrectas</div>
+              </div>
+              <div className={styles.statCard}>
+                <div className={styles.statValue}>{results.summary.averageAccuracy}%</div>
+                <div className={styles.statLabel}>Precisión promedio</div>
+              </div>
+              <div className={styles.statCard}>
+                <div className={styles.statValue}>{results.duration}s</div>
+                <div className={styles.statLabel}>Tiempo total</div>
+              </div>
+            </div>
+
+            {results.summary.strongAreas.length > 0 && (
+              <div className={styles.summarySection}>
+                <div className={styles.summaryTitle}>💪 Áreas fuertes:</div>
+                <div className={styles.areasList}>
+                  {results.summary.strongAreas.map((area, index) => (
+                    <span key={index} className={`${styles.areaTag} ${styles.strongArea}`}>
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {results.summary.weakAreas.length > 0 && (
+              <div className={styles.summarySection}>
+                <div className={styles.summaryTitle}>📚 Áreas a mejorar:</div>
+                <div className={styles.areasList}>
+                  {results.summary.weakAreas.map((area, index) => (
+                    <span key={index} className={`${styles.areaTag} ${styles.weakArea}`}>
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className={styles.buttonContainer}>
+              <button
+                className={`${styles.button} ${styles.buttonPrimary}`}
+                onClick={handleRestart}
+              >
+                🔄 Nueva Trivia
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading general */}
+        {loading && screen === 'start' && (
+          <div className={styles.loading}>
+            <div className={styles.spinner} />
+            <div className={styles.loadingText}>Generando tu trivia personalizada...</div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a", color: "#e2e8f0", padding: 16 },
-  card: { width: "min(900px, 95vw)", background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20 },
-  row: { display: "flex", alignItems: "center", gap: 12, margin: "8px 0 12px" },
-  textarea: { width: "100%", borderRadius: 12, border: "1px solid #334155", background: "#0b1220", color: "#e2e8f0", padding: 12, outline: "none", resize: "vertical" },
-  btnPrimary: { background: "#2563eb", color: "white", border: "none", padding: "10px 16px", borderRadius: 10, cursor: "pointer" },
-  btnGhost: { background: "transparent", color: "#93c5fd", border: "1px solid #1f2937", padding: "10px 16px", borderRadius: 10, cursor: "pointer" },
-  feedback: { marginTop: 16, background: "#0b1220", border: "1px solid #1f2937", borderRadius: 12, padding: 12 },
-  ref: { marginTop: 4, background: "#0a0f1c", border: "1px dashed #334155", borderRadius: 8, padding: 10, whiteSpace: "pre-wrap" },
-  error: { marginTop: 12, color: "#fecaca", background: "#7f1d1d", border: "1px solid #b91c1c", padding: 10, borderRadius: 8 },
-};
