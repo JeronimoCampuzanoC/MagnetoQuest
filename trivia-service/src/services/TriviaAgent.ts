@@ -1,12 +1,4 @@
-/* Este es el corazón del sistema. La clase TriviaAgent:
-
-Constructor: Inicializa OpenAI, guarda el tema con su prompt largo
-generateQuestion(): Usa el prompt detallado del tema para generar preguntas
-evaluateAnswer(): La IA evalúa respuestas abiertas y da puntuación 0-10
-getResults(): Devuelve el JSON final con todo el historial
-Progresión de dificultad: Las preguntas 1-2 son fáciles, 3-4 medias, 5 difícil
-No repite preguntas: Guarda las ya hechas para no repetir temas*/
-// server/src/services/TriviaAgent.ts
+// trivia-service/src/services/TriviaAgent.ts
 
 import OpenAI from 'openai';
 import {
@@ -37,6 +29,10 @@ export class TriviaAgent {
     this.sessionId = this.generateSessionId();
     this.startTime = new Date();
     this.askedQuestions = [];
+    
+    console.log(`\n🎯 [TriviaAgent] Nueva sesión creada: ${this.sessionId}`);
+    console.log(`📚 Tema: ${topic.name}`);
+    console.log(`🔢 Total de preguntas: ${totalQuestions}\n`);
   }
 
   private generateSessionId(): string {
@@ -54,9 +50,13 @@ export class TriviaAgent {
     this.currentQuestion++;
     const difficulty = this.getDifficulty();
 
+    console.log(`\n⏳ [${this.sessionId}] Generando pregunta ${this.currentQuestion}/${this.totalQuestions} (${difficulty})...`);
+
     const prompt = this.buildQuestionPrompt(difficulty);
 
     try {
+      const startTime = Date.now();
+      
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4',
         messages: [
@@ -73,14 +73,23 @@ export class TriviaAgent {
         max_tokens: 500
       });
 
+      const elapsed = Date.now() - startTime;
       const content = response.choices[0].message.content || '';
       const question = this.parseQuestionResponse(content, difficulty);
       
       this.askedQuestions.push(question.question);
       
+      console.log(`✅ [${this.sessionId}] Pregunta generada en ${elapsed}ms`);
+      console.log(`❓ Pregunta: ${question.question}`);
+      console.log(`💡 Respuesta esperada: ${question.expectedAnswer.substring(0, 100)}...`);
+      if (question.hint) {
+        console.log(`🔍 Pista: ${question.hint}`);
+      }
+      console.log('');
+      
       return question;
     } catch (error) {
-      console.error('Error generando pregunta:', error);
+      console.error(`❌ [${this.sessionId}] Error generando pregunta:`, error);
       throw new Error('No se pudo generar la pregunta');
     }
   }
@@ -93,6 +102,9 @@ export class TriviaAgent {
     expectedAnswer: string,
     question: TriviaQuestion
   ): Promise<EvaluationResult> {
+    console.log(`\n🔍 [${this.sessionId}] Evaluando respuesta de pregunta ${this.currentQuestion}...`);
+    console.log(`📝 Respuesta del usuario: ${userAnswer.substring(0, 150)}...`);
+    
     const prompt = `
 Evalúa la siguiente respuesta a una pregunta de trivia:
 
@@ -118,6 +130,8 @@ IMPORTANTE: Sé justo pero exigente. Una respuesta parcialmente correcta debe re
 `;
 
     try {
+      const startTime = Date.now();
+      
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4',
         messages: [
@@ -134,6 +148,7 @@ IMPORTANTE: Sé justo pero exigente. Una respuesta parcialmente correcta debe re
         max_tokens: 300
       });
 
+      const elapsed = Date.now() - startTime;
       const content = response.choices[0].message.content || '';
       const evaluation = this.parseEvaluationResponse(content, expectedAnswer);
 
@@ -152,9 +167,15 @@ IMPORTANTE: Sé justo pero exigente. Una respuesta parcialmente correcta debe re
 
       this.answers.push(answerRecord);
 
+      console.log(`✅ [${this.sessionId}] Evaluación completada en ${elapsed}ms`);
+      console.log(`${evaluation.isCorrect ? '✅' : '❌'} Correcta: ${evaluation.isCorrect}`);
+      console.log(`📊 Score: ${evaluation.score}/10 | Accuracy: ${evaluation.accuracy}%`);
+      console.log(`💬 Feedback: ${evaluation.feedback.substring(0, 100)}...`);
+      console.log('');
+
       return evaluation;
     } catch (error) {
-      console.error('Error evaluando respuesta:', error);
+      console.error(`❌ [${this.sessionId}] Error evaluando respuesta:`, error);
       throw new Error('No se pudo evaluar la respuesta');
     }
   }
@@ -208,6 +229,13 @@ IMPORTANTE: Sé justo pero exigente. Una respuesta parcialmente correcta debe re
       .flat()
       .filter((v, i, a) => a.indexOf(v) === i)
       .slice(0, 3);
+
+    console.log(`\n📊 [${this.sessionId}] Resultados finales generados:`);
+    console.log(`⭐ Score total: ${totalScore}/${maxScore} (${percentage}%)`);
+    console.log(`✅ Correctas: ${correctAnswers} | ❌ Incorrectas: ${incorrectAnswers}`);
+    console.log(`📈 Promedio de accuracy: ${averageAccuracy}%`);
+    console.log(`💪 Áreas fuertes: ${strongAreas.join(', ') || 'Ninguna'}`);
+    console.log(`📚 Áreas débiles: ${weakAreas.join(', ') || 'Ninguna'}\n`);
 
     return {
       sessionId: this.sessionId,
