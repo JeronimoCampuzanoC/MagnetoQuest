@@ -1,3 +1,5 @@
+// client/src/apps/triviaApp.tsx
+
 import { useState } from 'react';
 import styles from './triviaApp.module.css';
 import { TriviaService, TriviaTopicConfig, TriviaQuestion, EvaluationResult, TriviaProgress, TriviaResults } from '../services/triviaService';
@@ -17,6 +19,10 @@ export default function TriviaApp() {
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [progress, setProgress] = useState<TriviaProgress | null>(null);
   const [results, setResults] = useState<TriviaResults | null>(null);
+
+  // Estados para el flujo optimizado
+  const [nextQuestionPreloaded, setNextQuestionPreloaded] = useState<TriviaQuestion | null>(null);
+  const [isPreloading, setIsPreloading] = useState(false);
 
   // Estados del formulario inicial
   const [topicName, setTopicName] = useState('Programación Backend');
@@ -38,20 +44,25 @@ export default function TriviaApp() {
         difficulty: difficulty,
       };
 
+      console.log('🚀 [TriviaApp] Iniciando trivia...');
       const response = await TriviaService.startTrivia(topicConfig, totalQuestions);
 
       setSessionId(response.sessionId);
       setCurrentQuestion(response.firstQuestion);
       setProgress(response.progress);
       setScreen('question');
+      setEvaluation(null);
+      setNextQuestionPreloaded(null);
+      console.log('✅ [TriviaApp] Trivia iniciada correctamente');
     } catch (err) {
+      console.error('❌ [TriviaApp] Error al iniciar:', err);
       setError(err instanceof Error ? err.message : 'Error al iniciar la trivia');
     } finally {
       setLoading(false);
     }
   };
 
-  // Enviar respuesta
+  // Enviar respuesta y precargar siguiente pregunta en paralelo
   const handleSubmitAnswer = async () => {
     if (!userAnswer.trim()) {
       setError('Por favor escribe una respuesta');
@@ -62,23 +73,51 @@ export default function TriviaApp() {
     setError(null);
 
     try {
+      console.log('📝 [TriviaApp] Enviando respuesta...');
+      
+      // 1️⃣ Evaluar respuesta
       const response = await TriviaService.submitAnswer(sessionId, userAnswer);
 
       setEvaluation(response.evaluation);
       setProgress(response.progress);
+      setUserAnswer('');
 
-      // Si la trivia está completa, obtener resultados
+      console.log(`✅ [TriviaApp] Respuesta evaluada - ${response.evaluation.isCorrect ? 'Correcta' : 'Incorrecta'}`);
+
+      // 2️⃣ Si la trivia está completa, obtener resultados
       if (response.isComplete) {
+        console.log('🏁 [TriviaApp] Trivia completada, obteniendo resultados...');
         const finalResults = await TriviaService.getResults(sessionId);
         setResults(finalResults);
         setScreen('results');
+        console.log('✅ [TriviaApp] Resultados obtenidos');
       } else {
-        // Si no está completa, preparar para la siguiente pregunta
-        setCurrentQuestion(response.nextQuestion);
+        // 3️⃣ Si NO está completa, precargar siguiente pregunta en paralelo
+        console.log('🔄 [TriviaApp] Precargando siguiente pregunta en background...');
+        setIsPreloading(true);
+        
+        // Ejecutar en paralelo (no bloqueante)
+        TriviaService.getNextQuestion(sessionId)
+          .then((nextResponse) => {
+            const nextQ: TriviaQuestion = {
+              questionNumber: nextResponse.questionNumber,
+              question: nextResponse.question,
+              hint: nextResponse.hint,
+              difficulty: nextResponse.difficulty
+            };
+            setNextQuestionPreloaded(nextQ);
+            console.log('✅ [TriviaApp] Siguiente pregunta precargada');
+            setIsPreloading(false);
+          })
+          .catch((err) => {
+            console.error('❌ [TriviaApp] Error precargando siguiente pregunta:', err);
+            setIsPreloading(false);
+            // No mostramos error al usuario, se cargará al hacer clic en continuar
+          });
       }
 
-      setUserAnswer('');
     } catch (err) {
+      console.error('❌ [TriviaApp] Error al evaluar:', err);
       setError(err instanceof Error ? err.message : 'Error al evaluar la respuesta');
     } finally {
       setLoading(false);
@@ -87,11 +126,26 @@ export default function TriviaApp() {
 
   // Continuar a la siguiente pregunta
   const handleNextQuestion = () => {
-    setEvaluation(null);
+    setError(null);
+
+    // Si ya tenemos la pregunta precargada, usarla
+    if (nextQuestionPreloaded) {
+      console.log('⚡ [TriviaApp] Usando pregunta precargada (carga instantánea)');
+      setCurrentQuestion(nextQuestionPreloaded);
+      setEvaluation(null);
+      setNextQuestionPreloaded(null);
+      setIsPreloading(false);
+      return;
+    }
+
+    // Si no está precargada, mostrar error
+    console.error('❌ [TriviaApp] No hay pregunta precargada');
+    setError('Error: La siguiente pregunta no está disponible. Por favor recarga la página.');
   };
 
   // Reiniciar trivia
   const handleRestart = () => {
+    console.log('🔄 [TriviaApp] Reiniciando trivia...');
     setScreen('start');
     setSessionId('');
     setCurrentQuestion(null);
@@ -100,6 +154,8 @@ export default function TriviaApp() {
     setProgress(null);
     setResults(null);
     setError(null);
+    setNextQuestionPreloaded(null);
+    setIsPreloading(false);
   };
 
   // Calcular porcentaje de progreso
@@ -247,6 +303,18 @@ export default function TriviaApp() {
                     {evaluation.expectedAnswer}
                   </div>
                 </div>
+
+                {/* Indicador de precarga */}
+                {isPreloading && (
+                  <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#6b7280' }}>
+                    ⏳ Preparando siguiente pregunta...
+                  </div>
+                )}
+                {nextQuestionPreloaded && !isPreloading && (
+                  <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#10b981' }}>
+                    ✅ Siguiente pregunta lista
+                  </div>
+                )}
               </div>
             )}
 
@@ -296,8 +364,13 @@ export default function TriviaApp() {
                 <button
                   className={`${styles.button} ${styles.buttonPrimary}`}
                   onClick={handleNextQuestion}
+                  disabled={!nextQuestionPreloaded || isPreloading}
                 >
-                  ➡️ Continuar
+                  {isPreloading 
+                    ? '⏳ Cargando...' 
+                    : nextQuestionPreloaded 
+                      ? '➡️ Continuar (Instantáneo)' 
+                      : '⏳ Preparando...'}
                 </button>
               </div>
             )}

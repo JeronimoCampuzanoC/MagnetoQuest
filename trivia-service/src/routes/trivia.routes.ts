@@ -1,11 +1,10 @@
-//Este archivo define todas las rutas de la API
-
-// server/src/routes/trivia.routes.ts
+// trivia-service/src/routes/trivia.routes.ts
 
 import { Router } from 'express';
 import {
   startTrivia,
   submitAnswer,
+  getNextQuestion,
   getResults,
   getProgress,
   cancelSession
@@ -33,19 +32,46 @@ router.post('/start', startTrivia);
 
 /**
  * POST /api/trivia/answer/:sessionId
- * Envía una respuesta y obtiene la siguiente pregunta
+ * Envía una respuesta y obtiene SOLO la evaluación
+ * (NO genera siguiente pregunta automáticamente)
  * 
  * Params: sessionId
  * Body:
  * {
  *   "userAnswer": "La respuesta del usuario aquí..."
  * }
+ * 
+ * Response:
+ * {
+ *   "evaluation": { isCorrect, score, accuracy, feedback, expectedAnswer },
+ *   "progress": { current, total, score, maxScore, percentage },
+ *   "isComplete": boolean,
+ *   "nextQuestion": null
+ * }
  */
 router.post('/answer/:sessionId', submitAnswer);
 
 /**
+ * GET /api/trivia/next-question/:sessionId
+ * Genera la siguiente pregunta (llamada bajo demanda)
+ * 
+ * Params: sessionId
+ * 
+ * Response:
+ * {
+ *   "questionNumber": number,
+ *   "question": string,
+ *   "hint": string | undefined,
+ *   "difficulty": "easy" | "medium" | "hard",
+ *   "progress": { current, total, score, maxScore, percentage }
+ * }
+ */
+router.get('/next-question/:sessionId', getNextQuestion);
+
+/**
  * GET /api/trivia/results/:sessionId
  * Obtiene los resultados finales (JSON completo)
+ * Solo funciona si la trivia está completa
  * 
  * Params: sessionId
  */
