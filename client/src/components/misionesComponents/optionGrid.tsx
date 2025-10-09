@@ -2,7 +2,7 @@ import React from "react";
 import styles from "./optionGrid.module.css";
 
 export type OptionItem = {
-  id: number;        // usa el UUID de la misión
+    id: string;        // usa el UUID de la misión
   text: string;      // el título (o la descripción si prefieres)
   active: boolean;   // true si está en progreso
 };

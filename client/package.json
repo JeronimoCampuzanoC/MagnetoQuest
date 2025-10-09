@@ -44,9 +44,18 @@
   },
   "proxy": "http://localhost:4000",
   "devDependencies": {
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__generator": "^7.27.0",
+    "@types/babel__template": "^7.4.4",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/bonjour": "^3.5.13",
+    "@types/estree": "^1.0.8",
+    "@types/node": "^24.7.0",
+    "@types/prettier": "^2.7.3",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@types/react-modal": "^3.16.3",
-    "@types/reactstrap": "^8.7.1"
+    "@types/reactstrap": "^8.7.1",
+    "@types/trusted-types": "^2.0.7"
   }
 }

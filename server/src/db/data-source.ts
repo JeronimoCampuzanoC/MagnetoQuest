@@ -18,7 +18,7 @@ export const AppDataSource = new DataSource({
   port: Number(process.env.DB_PORT ?? 5432),
   username: process.env.DB_USER ?? 'poc_user',
   password: process.env.DB_PASS ?? 'poc_pass',
-  database: process.env.DB_NAME ?? 'poc_db',
+  database: process.env.DB_NAME ?? 'poc_db_test',
   synchronize: false, // <- Change to false for production
   logging: true, // <- Enable logging to debug connection issues
   migrationsRun: true, // <- Automatically run migrations
