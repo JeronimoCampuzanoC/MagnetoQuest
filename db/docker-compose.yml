@@ -1,3 +1,5 @@
+# Comando para correr la base de datos de test: 
+# docker compose --profile test up -d db_test
 services:
   db:
     image: postgres:16
@@ -11,13 +13,33 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./initdb:/docker-entrypoint-initdb.d:ro,Z   
+      - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db"]
       interval: 2s
       timeout: 3s
       retries: 20
 
+  db_test:
+    profiles: ["test"]                # ← solo se levanta con --profile test
+    image: postgres:16
+    container_name: poc-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poc_user
+      POSTGRES_PASSWORD: poc_pass
+      POSTGRES_DB: poc_db
+    ports:
+      - "5432:5432"                   # ← otro puerto en el host
+    volumes:
+      - pgdata_test:/var/lib/postgresql/data
+      - ./initdb_test:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
 volumes:
   pgdata:
+  pgdata_test:
