@@ -40,7 +40,7 @@ export class TriviaAgent {
   }
 
   /**
-   * Genera la siguiente pregunta usando OpenAI
+   * Genera la siguiente pregunta usando OpenAI con formato JSON
    */
   async generateQuestion(): Promise<TriviaQuestion> {
     if (this.currentQuestion >= this.totalQuestions) {
@@ -62,7 +62,7 @@ export class TriviaAgent {
         messages: [
           {
             role: 'system',
-            content: 'Eres un experto en crear preguntas educativas de trivia. Genera preguntas claras, específicas y que requieran respuestas abiertas detalladas.'
+            content: 'Eres un experto en crear preguntas educativas de trivia. SIEMPRE respondes ÚNICAMENTE con un objeto JSON válido, sin markdown, sin explicaciones, sin texto adicional. Tu respuesta DEBE empezar con { y terminar con }.'
           },
           {
             role: 'user',
@@ -71,6 +71,7 @@ export class TriviaAgent {
         ],
         temperature: 0.8,
         max_tokens: 500
+        // ❌ NO usar response_format con gpt-4 (solo gpt-4-turbo)
       });
 
       const elapsed = Date.now() - startTime;
@@ -83,7 +84,7 @@ export class TriviaAgent {
       console.log(`❓ Pregunta: ${question.question}`);
       console.log(`💡 Respuesta esperada: ${question.expectedAnswer.substring(0, 100)}...`);
       if (question.hint) {
-        console.log(`🔍 Pista: ${question.hint}`);
+        console.log(`🔑 Pista: ${question.hint}`);
       }
       console.log('');
       
@@ -120,7 +121,7 @@ Por favor evalúa la respuesta considerando:
 
 Devuelve tu evaluación en el siguiente formato JSON:
 {
-  "isCorrect": true/false,
+  "isCorrect": true o false,
   "score": número del 0-10,
   "accuracy": porcentaje del 0-100,
   "feedback": "Feedback detallado y constructivo"
@@ -132,21 +133,22 @@ IMPORTANTE: Sé justo pero exigente. Una respuesta parcialmente correcta debe re
     try {
       const startTime = Date.now();
       
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content: 'Eres un evaluador experto y justo. Proporcionas feedback constructivo y detallado.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 300
-      });
+const response = await this.openai.chat.completions.create({
+  model: 'gpt-4',
+  messages: [
+    {
+      role: 'system',
+      content: 'Eres un evaluador experto y justo. Proporcionas feedback constructivo y detallado. SIEMPRE respondes ÚNICAMENTE con un objeto JSON válido, sin markdown, sin explicaciones. Tu respuesta DEBE empezar con { y terminar con }.'
+    },
+    {
+      role: 'user',
+      content: prompt
+    }
+  ],
+  temperature: 0.3,
+  max_tokens: 300
+ 
+});
 
       const elapsed = Date.now() - startTime;
       const content = response.choices[0].message.content || '';
@@ -307,44 +309,89 @@ INSTRUCCIONES:
 - No hagas preguntas de opción múltiple
 - La respuesta esperada debe ser clara y evaluable
 
-Formato de respuesta:
-PREGUNTA: [tu pregunta aquí]
-RESPUESTA_ESPERADA: [respuesta esperada detallada]
-PISTA: [una pista útil opcional]
+🆕 IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido en este formato exacto:
+
+{
+  "pregunta": "Tu pregunta aquí",
+  "respuestaEsperada": "La respuesta esperada detallada",
+  "pista": "Una pista útil opcional o null si no aplica"
+}
+
+NO incluyas texto adicional, explicaciones, ni formato markdown. SOLO el objeto JSON.
 `;
 
     return prompt;
   }
 
+  /**
+   * 🆕 Parseo mejorado con JSON
+   */
   private parseQuestionResponse(content: string, difficulty: 'easy' | 'medium' | 'hard'): TriviaQuestion {
-    const questionMatch = content.match(/PREGUNTA:\s*(.+?)(?=RESPUESTA_ESPERADA:|$)/s);
-    const answerMatch = content.match(/RESPUESTA_ESPERADA:\s*(.+?)(?=PISTA:|$)/s);
-    const hintMatch = content.match(/PISTA:\s*(.+?)$/s);
+    try {
+      // Intentar parsear directamente como JSON
+      let parsed;
+      
+      // Buscar JSON en el contenido
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        parsed = JSON.parse(content);
+      }
+
+      // Validar que tenga los campos necesarios
+      if (parsed.pregunta && parsed.respuestaEsperada) {
+        return {
+          question: parsed.pregunta.trim(),
+          expectedAnswer: parsed.respuestaEsperada.trim(),
+          hint: parsed.pista && parsed.pista !== 'null' ? parsed.pista.trim() : undefined,
+          difficulty
+        };
+      }
+    } catch (error) {
+      console.error('⚠️ Error parseando JSON de pregunta:', error);
+      console.log('Contenido recibido:', content);
+    }
+
+    // 🔄 FALLBACK: Método anterior si JSON falla
+    console.log('⚠️ Usando método de parsing legacy (formato texto)');
+    const questionMatch = content.match(/(?:PREGUNTA:|pregunta:)\s*(.+?)(?=(?:RESPUESTA_ESPERADA:|respuestaEsperada:|$))/si);
+    const answerMatch = content.match(/(?:RESPUESTA_ESPERADA:|respuestaEsperada:)\s*(.+?)(?=(?:PISTA:|pista:|$))/si);
+    const hintMatch = content.match(/(?:PISTA:|pista:)\s*(.+?)$/si);
 
     return {
-      question: questionMatch ? questionMatch[1].trim() : 'Error: No se pudo generar la pregunta',
+      question: questionMatch ? questionMatch[1].trim() : content.split('\n')[0].trim() || 'Error: No se pudo generar la pregunta',
       expectedAnswer: answerMatch ? answerMatch[1].trim() : 'Error: No se pudo generar la respuesta',
       hint: hintMatch ? hintMatch[1].trim() : undefined,
       difficulty
     };
   }
 
+  /**
+   * 🆕 Parseo mejorado de evaluación con JSON
+   */
   private parseEvaluationResponse(content: string, expectedAnswer: string): EvaluationResult {
     try {
       // Intentar parsear como JSON
+      let parsed;
+      
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const evaluation = JSON.parse(jsonMatch[0]);
-        return {
-          isCorrect: evaluation.isCorrect || false,
-          score: Math.min(10, Math.max(0, evaluation.score || 0)),
-          accuracy: Math.min(100, Math.max(0, evaluation.accuracy || 0)),
-          feedback: evaluation.feedback || 'Sin feedback disponible',
-          expectedAnswer
-        };
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        parsed = JSON.parse(content);
       }
+
+      return {
+        isCorrect: parsed.isCorrect || false,
+        score: Math.min(10, Math.max(0, parsed.score || 0)),
+        accuracy: Math.min(100, Math.max(0, parsed.accuracy || 0)),
+        feedback: parsed.feedback || 'Sin feedback disponible',
+        expectedAnswer
+      };
     } catch (error) {
-      console.error('Error parseando evaluación:', error);
+      console.error('⚠️ Error parseando evaluación JSON:', error);
+      console.log('Contenido recibido:', content);
     }
 
     // Fallback si no se puede parsear
@@ -352,13 +399,13 @@ PISTA: [una pista útil opcional]
       isCorrect: false,
       score: 0,
       accuracy: 0,
-      feedback: 'No se pudo evaluar la respuesta correctamente',
+      feedback: 'No se pudo evaluar la respuesta correctamente. Por favor intenta de nuevo.',
       expectedAnswer
     };
   }
 
   private extractKeywords(text: string): string[] {
-    // Extraer palabras clave simples (puedes mejorar esto)
+    // Extraer palabras clave simples
     const words = text
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
