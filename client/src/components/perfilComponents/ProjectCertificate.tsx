@@ -1,62 +1,321 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Modal from "react-modal";
 
 // Reusable type for a project card
 type ProjectItem = {
-    id: number;
-    name: string;
+    projectId: string;
+    title: string;
     description: string;
+    userId: string;
+    url?: string;
+    previewImage?: string;
+    document?: string;
+    projectDate?: string;
 };
-
-// Placeholder data (to be replaced with backend fetch later)
-const dataFromDB: ProjectItem[] = [
-    { id: 1, name: "E-commerce website", description: "Una tienda online completa desarrollada con Next.js y Stripe para pagos." },
-    { id: 2, name: "E-commerce website", description: "Una tienda online completa desarrollada con Next.js y Stripe para pagos." },
-    { id: 3, name: "E-commerce website", description: "Una tienda online completa desarrollada con Next.js y Stripe para pagos." },
-];
 
 type InnerTab = "projects" | "certificates";
 
 const ProjectCertificate: React.FC = () => {
     const [tab, setTab] = useState<InnerTab>("projects");
+    const [projects, setProjects] = useState<ProjectItem[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Certificates placeholder data (to be replaced with backend later)
+    // Certificates type and state management
     type CertificateItem = {
-        id: number;
-        name: string;
+        certificateId: string;
+        title: string;
         description: string;
+        userId: string;
+        image?: string;
+        validationLink?: string;
     };
-    const certificateData: CertificateItem[] = [
-        { id: 1, name: "React", description: "Curso de platzi" },
-        { id: 2, name: "React", description: "Curso de platzi" },
-    ];
+    const [certificates, setCertificates] = useState<CertificateItem[]>([]);
+    const [certificateLoading, setCertificateLoading] = useState(true);
 
     const [modalIsOpen, setModalIsOpen] = useState(false);
-    const [formData, setFormData] = useState({ name: '', description: '' });
+    const [editModalIsOpen, setEditModalIsOpen] = useState(false);
+    const [certificateModalIsOpen, setCertificateModalIsOpen] = useState(false);
+    const [certificateEditModalIsOpen, setCertificateEditModalIsOpen] = useState(false);
+    const [formData, setFormData] = useState({ name: '', description: '', projectDate: '', url: '' });
+    const [editFormData, setEditFormData] = useState({ name: '', description: '', projectDate: '', url: '' });
+    const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
+    const [certificateFormData, setCertificateFormData] = useState({ name: '', description: '' });
+    const [certificateEditFormData, setCertificateEditFormData] = useState({ name: '', description: '' });
+    const [editingCertificate, setEditingCertificate] = useState<CertificateItem | null>(null);
+
+    // Fetch projects from backend
+    const fetchProjects = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                const projectsData = await response.json();
+                setProjects(projectsData);
+            } else {
+                console.error('Failed to fetch projects');
+            }
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch certificates from backend
+    const fetchCertificates = async () => {
+        try {
+            setCertificateLoading(true);
+            const response = await fetch('/api/certificates');
+            if (response.ok) {
+                const certificatesData = await response.json();
+                setCertificates(certificatesData);
+            } else {
+                console.error('Failed to fetch certificates');
+            }
+        } catch (error) {
+            console.error('Error fetching certificates:', error);
+        } finally {
+            setCertificateLoading(false);
+        }
+    };
+
+    // Fetch projects and certificates on component mount
+    useEffect(() => {
+        fetchProjects();
+        fetchCertificates();
+    }, []);
 
     const openModal = () => setModalIsOpen(true);
     const closeModal = () => setModalIsOpen(false);
+
+    const openEditModal = (project: ProjectItem) => {
+        setEditingProject(project);
+        setEditFormData({
+            name: project.title,
+            description: project.description,
+            projectDate: project.projectDate ? project.projectDate.split('T')[0] : '',
+            url: project.url || ''
+        });
+        setEditModalIsOpen(true);
+    };
+    const closeEditModal = () => {
+        setEditModalIsOpen(false);
+        setEditingProject(null);
+        setEditFormData({ name: '', description: '', projectDate: '', url: '' });
+    };
+
+    const openCertificateModal = () => setCertificateModalIsOpen(true);
+    const closeCertificateModal = () => setCertificateModalIsOpen(false);
+
+    const openCertificateEditModal = (certificate: CertificateItem) => {
+        setEditingCertificate(certificate);
+        setCertificateEditFormData({
+            name: certificate.title,
+            description: certificate.description
+        });
+        setCertificateEditModalIsOpen(true);
+    };
+    const closeCertificateEditModal = () => {
+        setCertificateEditModalIsOpen(false);
+        setEditingCertificate(null);
+        setCertificateEditFormData({ name: '', description: '' });
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
 
+    const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setEditFormData({ ...editFormData, [name]: value });
+    };
+
+    const handleCertificateChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setCertificateFormData({ ...certificateFormData, [name]: value });
+    };
+
+    const handleCertificateEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setCertificateEditFormData({ ...certificateEditFormData, [name]: value });
+    };
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // Send data to backend
-        const response = await fetch('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-        });
-        if (response.ok) {
-            // Handle success
-            closeModal();
+        try {
+            // Send data to backend
+            const response = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            if (response.ok) {
+                // Handle success - refresh projects list and close modal
+                await fetchProjects();
+                setFormData({ name: '', description: '', projectDate: '', url: '' }); // Reset form
+                closeModal();
+            } else {
+                // Handle error
+                console.error('Failed to submit data');
+                alert('Error al crear el proyecto');
+            }
+        } catch (error) {
+            console.error('Error submitting project:', error);
+            alert('Error al crear el proyecto');
+        }
+    };
+
+    const handleCertificateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        try {
+            // Send data to backend
+            const response = await fetch('/api/certificates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(certificateFormData),
+            });
+            if (response.ok) {
+                // Handle success - refresh certificates list and close modal
+                await fetchCertificates();
+                setCertificateFormData({ name: '', description: '' }); // Reset form
+                closeCertificateModal();
+            } else {
+                // Handle error
+                console.error('Failed to submit certificate');
+                alert('Error al crear el certificado');
+            }
+        } catch (error) {
+            console.error('Error submitting certificate:', error);
+            alert('Error al crear el certificado');
+        }
+    };
+
+    const handleDeleteProject = async (projectId: string, projectTitle: string) => {
+        const confirmDelete = window.confirm(
+            `¿Estás seguro de que quieres eliminar el proyecto "${projectTitle}"?\n\nEsta acción no se puede deshacer.`
+        );
+
+        if (!confirmDelete) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/projects/${projectId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                // Refresh projects list
+                await fetchProjects();
+                alert('Proyecto eliminado correctamente');
+            } else {
+                console.error('Failed to delete project');
+                alert('Error al eliminar el proyecto');
+            }
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            alert('Error al eliminar el proyecto');
+        }
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        if (!editingProject) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/projects/${editingProject.projectId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editFormData),
+            });
+
+            if (response.ok) {
+                // Handle success - refresh projects list and close modal
+                await fetchProjects();
+                closeEditModal();
+                alert('Proyecto actualizado correctamente');
+            } else {
+                console.error('Failed to update project');
+                alert('Error al actualizar el proyecto');
+            }
+        } catch (error) {
+            console.error('Error updating project:', error);
+            alert('Error al actualizar el proyecto');
+        }
+    };
+
+    const handleViewProject = (project: ProjectItem) => {
+        if (project.url) {
+            // Add protocol if not present
+            let url = project.url;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            window.open(url, '_blank', 'noopener,noreferrer');
         } else {
-            // Handle error
-            console.error('Failed to submit data');
+            alert('Este proyecto no tiene una URL configurada');
+        }
+    };
+
+    const handleDeleteCertificate = async (certificateId: string, certificateTitle: string) => {
+        const confirmDelete = window.confirm(
+            `¿Estás seguro de que quieres eliminar el certificado "${certificateTitle}"?\n\nEsta acción no se puede deshacer.`
+        );
+
+        if (!confirmDelete) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/certificates/${certificateId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                // Refresh certificates list
+                await fetchCertificates();
+                alert('Certificado eliminado correctamente');
+            } else {
+                console.error('Failed to delete certificate');
+                alert('Error al eliminar el certificado');
+            }
+        } catch (error) {
+            console.error('Error deleting certificate:', error);
+            alert('Error al eliminar el certificado');
+        }
+    };
+
+    const handleCertificateEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        if (!editingCertificate) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/certificates/${editingCertificate.certificateId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(certificateEditFormData),
+            });
+
+            if (response.ok) {
+                // Handle success - refresh certificates list and close modal
+                await fetchCertificates();
+                closeCertificateEditModal();
+                alert('Certificado actualizado correctamente');
+            } else {
+                console.error('Failed to update certificate');
+                alert('Error al actualizar el certificado');
+            }
+        } catch (error) {
+            console.error('Error updating certificate:', error);
+            alert('Error al actualizar el certificado');
         }
     };
 
@@ -80,99 +339,131 @@ const ProjectCertificate: React.FC = () => {
 
             {tab === "projects" && (
                 <div style={gridStyle}>
-                    {dataFromDB.map(p => (
-                        <div key={p.id} style={cardStyle}>
-                            <div style={imageWrapperStyle}>
-                                <img
-                                    src={"../static/cardBackground.png"}
-                                    alt="Proyecto placeholder"
-                                    style={imgStyle}
-                                />
-                            </div>
-                            <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{p.name}</h5>
-                            <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{p.description}</p>
-                            <div style={cardFooterStyle}>
-                                <div>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Ver proyecto ${p.name}`}
-                                        title="Ver proyecto"
-                                    >
-                                        <Eye size={16} />
-                                    </button>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: 20 }}>Cargando proyectos...</div>
+                    ) : projects.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>No hay proyectos aún. ¡Agrega tu primer proyecto!</div>
+                    ) : (
+                        projects.map(p => (
+                            <div key={p.projectId} style={cardStyle}>
+                                <div style={imageWrapperStyle}>
+                                    <img
+                                        src={p.previewImage || "../static/cardBackground.png"}
+                                        alt="Proyecto placeholder"
+                                        style={imgStyle}
+                                    />
                                 </div>
-                                <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Editar proyecto ${p.name}`}
-                                        title="Editar proyecto"
-                                    >
-                                        <Pencil size={16} />
-                                    </button>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Borrar proyecto ${p.name}`}
-                                        title="Borrar proyecto"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{p.title}</h5>
+                                {p.projectDate && (
+                                    <p style={{ margin: "0 0 8px", fontSize: 12, color: '#64748b' }}>
+                                        📅 {new Date(p.projectDate).toLocaleDateString('es-ES', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })}
+                                    </p>
+                                )}
+                                <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{p.description}</p>
+                                <div style={cardFooterStyle}>
+                                    <div>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Ver proyecto ${p.title}`}
+                                            title="Ver proyecto"
+                                            onClick={() => handleViewProject(p)}
+                                        >
+                                            <Eye size={16} />
+                                        </button>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Editar proyecto ${p.title}`}
+                                            title="Editar proyecto"
+                                            onClick={() => openEditModal(p)}
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Borrar proyecto ${p.title}`}
+                                            title="Borrar proyecto"
+                                            onClick={() => handleDeleteProject(p.projectId, p.title)}
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             )}
 
             {tab === "certificates" && (
                 <div style={gridStyle}>
-                    {certificateData.map(c => (
-                        <div key={c.id} style={cardStyle}>
-                            <div style={imageWrapperStyle}>
-                                <img
-                                    src={"../static/cardBackground.png"}
-                                    alt="Certificado placeholder"
-                                    style={imgStyle}
-                                />
-                            </div>
-                            <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{c.name}</h5>
-                            <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{c.description}</p>
-                            <div style={cardFooterStyle}>
-                                <div>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Ver certificado ${c.name}`}
-                                        title="Ver certificado"
-                                    >
-                                        <Eye size={16} />
-                                    </button>
+                    {certificateLoading ? (
+                        <div style={{ textAlign: 'center', padding: 20 }}>Cargando certificados...</div>
+                    ) : certificates.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>No hay certificados aún. ¡Agrega tu primer certificado!</div>
+                    ) : (
+                        certificates.map(c => (
+                            <div key={c.certificateId} style={cardStyle}>
+                                <div style={imageWrapperStyle}>
+                                    <img
+                                        src={c.image || "../static/cardBackground.png"}
+                                        alt="Certificado placeholder"
+                                        style={imgStyle}
+                                    />
                                 </div>
-                                <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Editar certificado ${c.name}`}
-                                        title="Editar certificado"
-                                    >
-                                        <Pencil size={16} />
-                                    </button>
-                                    <button
-                                        style={iconTextBtnStyle()}
-                                        aria-label={`Borrar certificado ${c.name}`}
-                                        title="Borrar certificado"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                <h5 style={{ margin: "12px 0 4px", fontSize: 18 }}>{c.title}</h5>
+                                <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, lineHeight: 1.4, flexGrow: 1 }}>{c.description}</p>
+                                <div style={cardFooterStyle}>
+                                    <div>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Ver certificado ${c.title}`}
+                                            title="Ver certificado"
+                                        >
+                                            <Eye size={16} />
+                                        </button>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Editar certificado ${c.title}`}
+                                            title="Editar certificado"
+                                            onClick={() => openCertificateEditModal(c)}
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                        <button
+                                            style={iconTextBtnStyle()}
+                                            aria-label={`Borrar certificado ${c.title}`}
+                                            title="Borrar certificado"
+                                            onClick={() => handleDeleteCertificate(c.certificateId, c.title)}
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             )}
 
-            {/* Add Project Button */}
+            {/* Add Project/Certificate Button */}
             <div style={{ marginTop: 20 }}>
-                <button onClick={openModal} style={addButtonStyle}>
-                    Agregar Proyecto
-                </button>
+                {tab === "projects" ? (
+                    <button onClick={openModal} style={addButtonStyle}>
+                        Agregar Proyecto
+                    </button>
+                ) : (
+                    <button onClick={openCertificateModal} style={addButtonStyle}>
+                        Agregar Certificado
+                    </button>
+                )}
             </div>
 
             {/* Add Project Modal */}
@@ -205,11 +496,176 @@ const ProjectCertificate: React.FC = () => {
                             style={{ ...inputStyle, resize: "none", height: 80 }}
                         />
                     </label>
+                    <label style={labelStyle}>
+                        Fecha del Proyecto:
+                        <input
+                            type="date"
+                            name="projectDate"
+                            value={formData.projectDate}
+                            onChange={handleChange}
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        URL del Proyecto:
+                        <input
+                            type="url"
+                            name="url"
+                            value={formData.url}
+                            onChange={handleChange}
+                            placeholder="https://ejemplo.com"
+                            style={inputStyle}
+                        />
+                    </label>
                     <div style={{ display: "flex", gap: 12 }}>
                         <button type="submit" style={confirmButtonStyle}>
                             Confirmar
                         </button>
                         <button type="button" onClick={closeModal} style={cancelButtonStyle}>
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Edit Project Modal */}
+            <Modal
+                isOpen={editModalIsOpen}
+                onRequestClose={closeEditModal}
+                style={modalStyle}
+                ariaHideApp={false}
+            >
+                <h2 style={{ marginBottom: 16 }}>Editar Proyecto</h2>
+                <form onSubmit={handleEditSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <label style={labelStyle}>
+                        Nombre:
+                        <input
+                            type="text"
+                            name="name"
+                            value={editFormData.name}
+                            onChange={handleEditChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Descripción:
+                        <textarea
+                            name="description"
+                            value={editFormData.description}
+                            onChange={handleEditChange}
+                            required
+                            style={{ ...inputStyle, resize: "none", height: 80 }}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Fecha del Proyecto:
+                        <input
+                            type="date"
+                            name="projectDate"
+                            value={editFormData.projectDate}
+                            onChange={handleEditChange}
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        URL del Proyecto:
+                        <input
+                            type="url"
+                            name="url"
+                            value={editFormData.url}
+                            onChange={handleEditChange}
+                            placeholder="https://ejemplo.com"
+                            style={inputStyle}
+                        />
+                    </label>
+                    <div style={{ display: "flex", gap: 12 }}>
+                        <button type="submit" style={confirmButtonStyle}>
+                            Guardar Cambios
+                        </button>
+                        <button type="button" onClick={closeEditModal} style={cancelButtonStyle}>
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Add Certificate Modal */}
+            <Modal
+                isOpen={certificateModalIsOpen}
+                onRequestClose={closeCertificateModal}
+                style={modalStyle}
+                ariaHideApp={false}
+            >
+                <h2 style={{ marginBottom: 16 }}>Agregar Nuevo Certificado</h2>
+                <form onSubmit={handleCertificateSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <label style={labelStyle}>
+                        Nombre:
+                        <input
+                            type="text"
+                            name="name"
+                            value={certificateFormData.name}
+                            onChange={handleCertificateChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Descripción:
+                        <textarea
+                            name="description"
+                            value={certificateFormData.description}
+                            onChange={handleCertificateChange}
+                            required
+                            style={{ ...inputStyle, resize: "none", height: 80 }}
+                        />
+                    </label>
+                    <div style={{ display: "flex", gap: 12 }}>
+                        <button type="submit" style={confirmButtonStyle}>
+                            Confirmar
+                        </button>
+                        <button type="button" onClick={closeCertificateModal} style={cancelButtonStyle}>
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Edit Certificate Modal */}
+            <Modal
+                isOpen={certificateEditModalIsOpen}
+                onRequestClose={closeCertificateEditModal}
+                style={modalStyle}
+                ariaHideApp={false}
+            >
+                <h2 style={{ marginBottom: 16 }}>Editar Certificado</h2>
+                <form onSubmit={handleCertificateEditSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <label style={labelStyle}>
+                        Nombre:
+                        <input
+                            type="text"
+                            name="name"
+                            value={certificateEditFormData.name}
+                            onChange={handleCertificateEditChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Descripción:
+                        <textarea
+                            name="description"
+                            value={certificateEditFormData.description}
+                            onChange={handleCertificateEditChange}
+                            required
+                            style={{ ...inputStyle, resize: "none", height: 80 }}
+                        />
+                    </label>
+                    <div style={{ display: "flex", gap: 12 }}>
+                        <button type="submit" style={confirmButtonStyle}>
+                            Guardar Cambios
+                        </button>
+                        <button type="button" onClick={closeCertificateEditModal} style={cancelButtonStyle}>
                             Cancelar
                         </button>
                     </div>

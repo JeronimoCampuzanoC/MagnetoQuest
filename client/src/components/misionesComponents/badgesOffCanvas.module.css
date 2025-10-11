@@ -1,0 +1,23 @@
+.floatingBtn {
+  position: fixed;
+  right: 20px;        /* separación del borde derecho */
+  top: 200px;       /* separación del borde inferior */
+  width: 56px;
+  height: 56px;
+  border-radius: 50%; /* redondo */
+  border: none;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  font-size: 24px;    /* tamaño del emoji o ícono */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .2s ease, box-shadow .2s ease;
+  z-index: 1050;      /* que quede por encima del contenido */
+}
+
+.floatingBtn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}

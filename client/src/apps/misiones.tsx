@@ -2,19 +2,51 @@ import styles from "./misiones.module.css"
 import ProgressBarSteps from "../components/misionesComponents/progressBar"
 import OptionGrid, { OptionItem } from "../components/misionesComponents/optionGrid"
 import Carousel from "../components/misionesComponents/carousel"
+import React, { useEffect, useState } from "react"
+import BadgesOffCanvas from "../components/misionesComponents/badgesOffCanvas"
 
-const dataFromDB: OptionItem[] = [
-    { id: 1, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: true },
-    { id: 2, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
-    { id: 3, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: true },
-    { id: 4, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
-    { id: 5, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
-    { id: 6, text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
+const items: OptionItem[] = [
+    { id: "1", text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: true },
+    { id: "2", text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
+    { id: "3", text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: true },
+    { id: "4", text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
+    { id: "5", text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
+    { id: "6", text: "Una tienda online completa desarrollada con Next.js y Stripe para pagos.", active: false },
 ];
 
 export default function Misiones() {
+    // const [items, setItems] = useState<OptionItem[]>([])
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    // useEffect(() => {
+    //     // intenta obtener userId de localStorage, sino usa un default (mismo que en servidor)
+    //     const storedUser = localStorage.getItem('userId')
+    //     const userId = storedUser || '0b40bf7c-9c93-45d8-87f5-8647730f99b9'
+
+    //     const fetchMissions = async () => {
+    //         setLoading(true)
+    //         try {
+    //             const res = await fetch(`/users/${userId}/missions-in-progress`)
+    //             if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    //             const data: Array<{ id: string; text: string; active: boolean }> = await res.json()
+    //             // mapear directamente al tipo OptionItem
+    //             setItems(data.map(d => ({ id: d.id, text: d.text, active: !!d.active })))
+    //         } catch (e: any) {
+    //             console.error('Error fetching missions', e)
+    //             setError(e?.message || 'Error')
+    //         } finally {
+    //             setLoading(false)
+    //         }
+    //     }
+
+    //     fetchMissions()
+    // }, [])
+
+    
     return (
         <div className="min-h-screen bg-gray-50">
+            <BadgesOffCanvas/>
             <main className="container mx-auto px-4 py-8 max-w-6xl">
                 <div className={styles.parent}>
                     <div className={styles.progressBar}>
@@ -39,13 +71,19 @@ export default function Misiones() {
 
                     <div className={styles.misiones}>
 
-                        <div style={{ padding: 24 }}>
-                            <OptionGrid
-                                items={dataFromDB}
-                                columns={2}
-                                checkColor="#22c55e"
-                                ringColor="#ffffff"
-                            />
+                        <div style={{ padding: 24 , height: '100%' }}>
+                            {loading ? (
+                                <div>Cargando misiones...</div>
+                            ) : error ? (
+                                <div>Error: {error}</div>
+                            ) : (
+                                <OptionGrid
+                                    items={items}
+                                    columns={2}
+                                    checkColor="#22c55e"
+                                    ringColor="#ffffff"
+                                />
+                            )}
                         </div>
                     </div>
 

@@ -1,30 +1,34 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { AppUser } from './AppUser';
 
-@Entity('project')
+@Entity({ name: 'project' })
 export class Project {
   @PrimaryGeneratedColumn('uuid', { name: 'project_id' })
-  projectId!: string;
+  project_id!: string;
 
+  @Index()
   @Column({ name: 'user_id', type: 'uuid' })
-  userId!: string;
+  user_id!: string;
+
+  @ManyToOne(() => AppUser, (u) => u.projects, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id', referencedColumnName: 'id_app_user' })
+  user!: AppUser;
 
   @Column({ name: 'title', type: 'text' })
   title!: string;
 
   @Column({ name: 'description', type: 'text', nullable: true })
-  description!: string;
+  description!: string | null;
 
   @Column({ name: 'url', type: 'text', nullable: true })
-  url!: string;
+  url!: string | null;
 
   @Column({ name: 'preview_image', type: 'text', nullable: true })
-  previewImage!: string;
+  preview_image!: string | null;
 
   @Column({ name: 'document', type: 'text', nullable: true })
-  document!: string;
+  document!: string | null;
 
-  @ManyToOne(() => AppUser, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
-  user!: AppUser;
+  @Column({ name: 'project_date', type: 'date', nullable: true })
+  project_date!: Date | null;
 }

@@ -6,6 +6,15 @@ import { AppDataSource } from './db/data-source';
 import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
 import triviaProxyRoutes from './routes/trivia-proxy.routes';
+import { Certificate } from './entities/Certificate';
+import { Mission } from './entities/Mission';
+import { Badge } from './entities/Badge';
+import { BadgeProgress } from './entities/BadgeProgress';
+import { NotificationLog } from './entities/NotificationLog';
+import { Resume } from './entities/Resume';
+import { TriviaAttempt } from './entities/TriviaAttempt';
+import { TriviaQuestion } from './entities/TriviaQuestion';
+import { UserMissionProgress } from './entities/UserMissionProgress';
 
 dotenv.config();
 
@@ -20,11 +29,55 @@ app.get('/api/hello', async (_req, res)=>{
 });
 
 
+// LISTAR misiones
+app.get('/users/:userId/missions-in-progress', async (req, res) => {
+  const { userId } = req.params;
+  console.log('Listando misiones en progreso para userId=', userId);
+  const qb = AppDataSource.getRepository(UserMissionProgress)
+    .createQueryBuilder('ump')
+    .innerJoin('ump.mission', 'm')
+    .select([
+      'm.mission_id AS id',
+      'm.title       AS text',
+      "CASE WHEN ump.status = 'in_progress' THEN TRUE ELSE FALSE END AS active",
+    ])
+    .where('ump.user_id = :userId', { userId })
+    .orderBy('m.created_at', 'DESC');
+
+  const result = await qb.getRawMany(); // ya sale con { id, text, active }
+  res.json(result);
+});
+
+
+// LISTAR insignias
+app.get('/users/:userId/badges', async (req, res) => {
+  const { userId } = req.params;
+  console.log('Listando insignias para userId=', userId);
+  try {
+    // Badge no tiene relación directa a AppUser; la relación viene a través de badge_progress
+    const qb = AppDataSource.getRepository(BadgeProgress)
+      .createQueryBuilder('bp')
+      .innerJoin('bp.badge', 'b')
+      .select([
+        'b.badge_name AS badge_name',
+        'b.badge_score AS badge_score',
+      ])
+      .where('bp.user_id = :userId', { userId })
+      .orderBy('b.badge_name', 'ASC');
+
+    const result = await qb.getRawMany();
+    res.json(result);
+  } catch (err) {
+    console.error('Error listing badges for user', userId, err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 // LISTAR usuarios
 app.get('/api/appusers', async (_req, res) => {
   try {
     const repo = AppDataSource.getRepository(AppUser);
-    const users = await repo.find({ order: { id: 'ASC' } });
+    const users = await repo.find({ order: { id_app_user: 'ASC' } });
     res.json(users);
   } catch (e) {
     console.error(e);
@@ -52,7 +105,7 @@ app.post('/api/users', async (req, res) => {
 // CREAR proyecto
 app.post('/api/projects', async (req, res) => {
   try {
-    const { name, description, userId } = req.body ?? {};
+    const { name, description, projectDate, url, userId } = req.body ?? {};
     
     // Validate required fields
     if (typeof name !== 'string' || !name.trim()) {
@@ -68,8 +121,13 @@ app.post('/api/projects', async (req, res) => {
     const project = repo.create({
       title: name.trim(),
       description: description?.trim() || '',
-      userId: projectUserId
+      url: url?.trim() || null,
+      user_id: projectUserId
     });
+    
+    if (projectDate) {
+      project.project_date = new Date(projectDate);
+    }
     
     await repo.save(project);
     res.status(201).json(project);
@@ -88,11 +146,11 @@ app.get('/api/projects', async (req, res) => {
     let projects;
     if (userId) {
       projects = await repo.find({ 
-        where: { userId: userId as string },
-        order: { projectId: 'ASC' }
+        where: { user_id: userId as string },
+        order: { project_id: 'ASC' }
       });
     } else {
-      projects = await repo.find({ order: { projectId: 'ASC' } });
+      projects = await repo.find({ order: { project_id: 'ASC' } });
     }
     
     res.json(projects);
