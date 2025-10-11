@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { AppDataSource } from './db/data-source';
 import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
+import triviaProxyRoutes from './routes/trivia-proxy.routes';
 import { Certificate } from './entities/Certificate';
 import { Mission } from './entities/Mission';
 import { Badge } from './entities/Badge';
@@ -19,7 +20,7 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // ← necesario para leer req.body
+app.use(express.json());
 
 
 app.get('/api/hello', async (_req, res)=>{
@@ -113,7 +114,7 @@ app.post('/api/projects', async (req, res) => {
     
     // For now, we'll use a default user ID if not provided
     // In a real app, you'd get this from authentication
-    const defaultUserId = 'd6d6389b-783e-4a44-9e47-fbdaa0201e4d'; // Replace with actual user logic
+    const defaultUserId = 'b512eddd-524b-4ec1-8564-f3c7331fe912';
     const projectUserId = userId || defaultUserId;
     
     const repo = AppDataSource.getRepository(Project);
@@ -159,180 +160,8 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
-// ACTUALIZAR proyecto
-app.put('/api/projects/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description, projectDate, url } = req.body ?? {};
-    
-    if (!id) {
-      return res.status(400).json({ error: 'ID de proyecto requerido' });
-    }
-    
-    if (typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'name requerido' });
-    }
-    
-    const repo = AppDataSource.getRepository(Project);
-    const project = await repo.findOne({ where: { project_id: id } });
-    
-    if (!project) {
-      return res.status(404).json({ error: 'Proyecto no encontrado' });
-    }
-    
-    // Update project fields
-    project.title = name.trim();
-    project.description = description?.trim() || '';
-    project.url = url?.trim() || null;
-    
-    if (projectDate) {
-      project.project_date = new Date(projectDate);
-    } else {
-      project.project_date = null;
-    }
-    
-    await repo.save(project);
-    res.json(project);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'DB error' });
-  }
-});
-
-// ELIMINAR proyecto
-app.delete('/api/projects/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({ error: 'ID de proyecto requerido' });
-    }
-    
-    const repo = AppDataSource.getRepository(Project);
-    const project = await repo.findOne({ where: { project_id: id } });
-    
-    if (!project) {
-      return res.status(404).json({ error: 'Proyecto no encontrado' });
-    }
-    
-    await repo.remove(project);
-    res.json({ message: 'Proyecto eliminado correctamente' });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'DB error' });
-  }
-});
-
-// CREAR certificado
-app.post('/api/certificates', async (req, res) => {
-  try {
-    const { name, description, userId } = req.body ?? {};
-    
-    // Validate required fields
-    if (typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'name requerido' });
-    }
-    
-    // For now, we'll use a default user ID if not provided
-    // In a real app, you'd get this from authentication
-    const defaultUserId = 'd6d6389b-783e-4a44-9e47-fbdaa0201e4d'; // Replace with actual user logic
-    const certificateUserId = userId || defaultUserId;
-    
-    const repo = AppDataSource.getRepository(Certificate);
-    const certificate = repo.create({
-      title: name.trim(),
-      description: description?.trim() || '',
-      user_id: certificateUserId
-    });
-    
-    await repo.save(certificate);
-    res.status(201).json(certificate);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'DB error' });
-  }
-});
-
-// LISTAR certificados
-app.get('/api/certificates', async (req, res) => {
-  try {
-    const { userId } = req.query;
-    const repo = AppDataSource.getRepository(Certificate);
-    
-    let certificates;
-    if (userId) {
-      certificates = await repo.find({ 
-        where: { user_id: userId as string },
-        order: { certificate_id: 'ASC' }
-      });
-    } else {
-      certificates = await repo.find({ order: { certificate_id: 'ASC' } });
-    }
-    
-    res.json(certificates);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'DB error' });
-  }
-});
-
-// ACTUALIZAR certificado
-app.put('/api/certificates/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description } = req.body ?? {};
-    
-    if (!id) {
-      return res.status(400).json({ error: 'ID de certificado requerido' });
-    }
-    
-    if (typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'name requerido' });
-    }
-    
-    const repo = AppDataSource.getRepository(Certificate);
-    const certificate = await repo.findOne({ where: { certificate_id: id } });
-    
-    if (!certificate) {
-      return res.status(404).json({ error: 'Certificado no encontrado' });
-    }
-    
-    // Update certificate fields
-    certificate.title = name.trim();
-    certificate.description = description?.trim() || '';
-    
-    await repo.save(certificate);
-    res.json(certificate);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'DB error' });
-  }
-});
-
-// ELIMINAR certificado
-app.delete('/api/certificates/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({ error: 'ID de certificado requerido' });
-    }
-    
-    const repo = AppDataSource.getRepository(Certificate);
-    const certificate = await repo.findOne({ where: { certificate_id: id } });
-    
-    if (!certificate) {
-      return res.status(404).json({ error: 'Certificado no encontrado' });
-    }
-    
-    await repo.remove(certificate);
-    res.json({ message: 'Certificado eliminado correctamente' });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'DB error' });
-  }
-});
-
+// 👇 NUEVA RUTA PROXY PARA TRIVIA
+app.use('/api/trivia', triviaProxyRoutes);
 
 
 const PORT = process.env.PORT || 4000;
@@ -347,11 +176,3 @@ AppDataSource.initialize()
     console.error('❌ Error al conectar TypeORM', err);
     process.exit(1);
   });
-
-/* 👇 SI SIRVES FRONT ESTÁTICO, PONLO AL FINAL (después de las rutas /api)
-import path from 'path'; import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url); const __dirname = path.dirname(__filename);
-const clientDir = path.join(__dirname, '..', '..', 'client');
-app.use(express.static(clientDir));
-app.get('*', (_req, res) => res.sendFile(path.join(clientDir, 'index.html')));
-*/
