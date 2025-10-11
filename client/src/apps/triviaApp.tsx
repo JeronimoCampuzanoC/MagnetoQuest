@@ -1,143 +1,168 @@
-// client/src/apps/TriviaTestUI.tsx
-// 🎨 Versión de prueba con datos MOCK para diseño/CSS
+// client/src/apps/triviaApp.tsx
 
 import { useState } from 'react';
 import styles from './triviaApp.module.css';
+import { TriviaService, TriviaTopicConfig, TriviaQuestion, EvaluationResult, TriviaProgress, TriviaResults } from '../services/triviaService';
 
+// Controla las diferentes pantallas que le mostramos al usuario
 type Screen = 'start' | 'question' | 'results';
 
-export default function TriviaTestUI() {
-  const [screen, setScreen] = useState<Screen>('start');
-  const [showEvaluation, setShowEvaluation] = useState(false);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+export default function TriviaApp() {
+  // Estados principales
+  const [screen, setScreen] = useState<Screen>('start'); // Inicia en la pantalla de start
+  const [loading, setLoading] = useState(false); // Estado para saber si esta esperando respuesta del servidor
+  const [error, setError] = useState<string | null>(null); // Estado para errores
 
-  // 🔥 DATOS MOCK - Puedes editar para probar diferentes estados
-  const mockTopicName = 'Programación Backend';
-  const mockTopicDescription = 'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño...';
-  
-  const mockQuestions = [
-    {
-      questionNumber: 1,
-      question: '¿Qué es un patrón de diseño Singleton y cuándo deberías usarlo?',
-      hint: 'Piensa en situaciones donde necesitas una única instancia global',
-      difficulty: 'easy' as const
-    },
-    {
-      questionNumber: 2,
-      question: 'Explica la diferencia entre arquitectura monolítica y microservicios, mencionando ventajas y desventajas de cada una.',
-      hint: 'Considera escalabilidad, mantenimiento y complejidad',
-      difficulty: 'medium' as const
-    },
-    {
-      questionNumber: 3,
-      question: 'Describe cómo implementarías un sistema de caché distribuido para mejorar el rendimiento de una API REST con alta concurrencia.',
-      hint: 'Considera Redis, estrategias de invalidación y consistencia',
-      difficulty: 'hard' as const
+  // Estados de la trivia
+  const [sessionId, setSessionId] = useState<string>(''); // Identificacion de trivia, en este caso se podria usar el del usuario
+  // Almacena la pregunta que el usuario esta viendo en este momento
+  const [currentQuestion, setCurrentQuestion] = useState<TriviaQuestion | null>(null);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  const [progress, setProgress] = useState<TriviaProgress | null>(null);
+  // Resultados finales
+  const [results, setResults] = useState<TriviaResults | null>(null);
+
+  // Estados para el flujo optimizado
+  const [nextQuestionPreloaded, setNextQuestionPreloaded] = useState<TriviaQuestion | null>(null);
+  const [isPreloading, setIsPreloading] = useState(false);
+
+  // Estados del formulario inicial
+  const [topicName, setTopicName] = useState('Programación Backend');
+  const [topicDescription, setTopicDescription] = useState(
+    'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño, optimización de bases de datos, APIs RESTful, microservicios, y mejores prácticas de desarrollo.'
+  );
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [totalQuestions, setTotalQuestions] = useState(5);
+
+  // Iniciar trivia
+  const handleStartTrivia = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const topicConfig: TriviaTopicConfig = {
+        name: topicName,
+        description: topicDescription,
+        difficulty: difficulty,
+      };
+
+      console.log('🚀 [TriviaApp] Iniciando trivia...');
+      const response = await TriviaService.startTrivia(topicConfig, totalQuestions); // Inicio de la trivia
+
+      setSessionId(response.sessionId); // Guardamos el sessionId
+      setCurrentQuestion(response.firstQuestion); // Mostramos la primera pregunta
+      setProgress(response.progress); // Estado inicial del progreso
+      setScreen('question'); // Cambia a la pantalla de preguntas
+      setEvaluation(null);
+      setNextQuestionPreloaded(null);
+      console.log('✅ [TriviaApp] Trivia iniciada correctamente');
+    } catch (err) {
+      console.error('❌ [TriviaApp] Error al iniciar:', err);
+      setError(err instanceof Error ? err.message : 'Error al iniciar la trivia');
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const mockEvaluation = {
-    isCorrect: true,
-    score: 8,
-    accuracy: 85,
-    feedback: '¡Excelente respuesta! Has demostrado un buen entendimiento del patrón Singleton. Mencionaste correctamente su propósito de garantizar una única instancia y diste ejemplos válidos de uso. Para mejorar, podrías mencionar las consideraciones de thread-safety en entornos multi-hilo.',
-    expectedAnswer: 'El patrón Singleton garantiza que una clase tenga solo una instancia y proporciona un punto de acceso global a ella. Se usa cuando: 1) Necesitas controlar el acceso a recursos compartidos (ej: conexión a BD), 2) Quieres un único punto de coordinación, 3) La instancia debe ser accesible globalmente. Implementación típica: constructor privado, método estático getInstance() que retorna la única instancia.'
   };
 
-  const mockProgress = {
-    current: currentQuestionIndex + 1,
-    total: 3,
-    score: 16,
-    maxScore: 20,
-    percentage: 80
-  };
+  // Enviar respuesta y precargar siguiente pregunta en paralelo
+  const handleSubmitAnswer = async () => {
+    if (!userAnswer.trim()) {
+      setError('Por favor escribe una respuesta');
+      return;
+    }
 
-  const mockResults = {
-    sessionId: 'mock_session_123',
-    topic: { name: mockTopicName, description: mockTopicDescription },
-    startTime: '2025-01-15T10:00:00',
-    endTime: '2025-01-15T10:15:00',
-    duration: 900,
-    totalQuestions: 3,
-    totalScore: 24,
-    maxScore: 30,
-    percentage: 80,
-    answers: [
-      {
-        questionNumber: 1,
-        question: mockQuestions[0].question,
-        userAnswer: 'El Singleton es un patrón que asegura una sola instancia...',
-        expectedAnswer: 'Respuesta esperada completa...',
-        isCorrect: true,
-        score: 8,
-        accuracy: 85,
-        feedback: 'Muy bien',
-        timestamp: '2025-01-15T10:05:00'
-      },
-      {
-        questionNumber: 2,
-        question: mockQuestions[1].question,
-        userAnswer: 'La arquitectura monolítica tiene todo en un solo...',
-        expectedAnswer: 'Respuesta esperada completa...',
-        isCorrect: true,
-        score: 9,
-        accuracy: 92,
-        feedback: 'Excelente',
-        timestamp: '2025-01-15T10:10:00'
-      },
-      {
-        questionNumber: 3,
-        question: mockQuestions[2].question,
-        userAnswer: 'Usaría Redis como sistema de caché...',
-        expectedAnswer: 'Respuesta esperada completa...',
-        isCorrect: false,
-        score: 7,
-        accuracy: 68,
-        feedback: 'Bien, pero faltaron detalles',
-        timestamp: '2025-01-15T10:15:00'
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('📝 [TriviaApp] Enviando respuesta...');
+      
+      // Evaluar respuesta, trae lo que se respondio y el progreso actualizado
+      const response = await TriviaService.submitAnswer(sessionId, userAnswer);
+
+      setEvaluation(response.evaluation);
+      setProgress(response.progress);
+      setUserAnswer('');
+
+      console.log(`✅ [TriviaApp] Respuesta evaluada - ${response.evaluation.isCorrect ? 'Correcta' : 'Incorrecta'}`);
+
+      // 2️⃣ Si la trivia está completa, obtener resultados
+      if (response.isComplete) {
+        console.log('🏁 [TriviaApp] Trivia completada, obteniendo resultados...');
+        const finalResults = await TriviaService.getResults(sessionId);
+        setResults(finalResults);
+        setScreen('results'); // Cambia a la pantalla de resultados
+        console.log('✅ [TriviaApp] Resultados obtenidos');
+      } else {
+        // 3️⃣ Si NO está completa, precargar siguiente pregunta en paralelo
+        console.log('🔄 [TriviaApp] Precargando siguiente pregunta en background...');
+        setIsPreloading(true);
+        
+        // Ejecutar en paralelo (no bloqueante)
+        TriviaService.getNextQuestion(sessionId)
+          .then((nextResponse) => {
+            const nextQ: TriviaQuestion = {
+              questionNumber: nextResponse.questionNumber,
+              question: nextResponse.question,
+              hint: nextResponse.hint,
+              difficulty: nextResponse.difficulty
+            };
+            setNextQuestionPreloaded(nextQ);
+            console.log('✅ [TriviaApp] Siguiente pregunta precargada');
+            setIsPreloading(false);
+          })
+          .catch((err) => {
+            console.error('❌ [TriviaApp] Error precargando siguiente pregunta:', err);
+            setIsPreloading(false);
+            // No mostramos error al usuario, se cargará al hacer clic en continuar
+          });
       }
-    ],
-    summary: {
-      correctAnswers: 2,
-      incorrectAnswers: 1,
-      averageAccuracy: 82,
-      strongAreas: ['Patrones de diseño', 'Arquitectura de software'],
-      weakAreas: ['Sistemas distribuidos', 'Caché']
+
+    } catch (err) {
+      console.error('❌ [TriviaApp] Error al evaluar:', err);
+      setError(err instanceof Error ? err.message : 'Error al evaluar la respuesta');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🎬 FUNCIONES MOCK (sin lógica real)
-  const handleStartTrivia = () => {
-    console.log('🎯 Mock: Iniciando trivia...');
-    setScreen('question');
-    setShowEvaluation(false);
-    setCurrentQuestionIndex(0);
-  };
-
-  const handleSubmitAnswer = () => {
-    console.log('📝 Mock: Enviando respuesta...');
-    setShowEvaluation(true);
-  };
-
+  // Continuar a la siguiente pregunta
   const handleNextQuestion = () => {
-    console.log('➡️ Mock: Siguiente pregunta...');
-    if (currentQuestionIndex < mockQuestions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setShowEvaluation(false);
-    } else {
-      setScreen('results');
+    setError(null);
+
+    // Si ya tenemos la pregunta precargada, usarla
+    if (nextQuestionPreloaded) {
+      console.log('⚡ [TriviaApp] Usando pregunta precargada (carga instantánea)');
+      setCurrentQuestion(nextQuestionPreloaded);
+      setEvaluation(null);
+      setNextQuestionPreloaded(null);
+      setIsPreloading(false);
+      return;
     }
+
+    // Si no está precargada, mostrar error
+    console.error('❌ [TriviaApp] No hay pregunta precargada');
+    setError('Error: La siguiente pregunta no está disponible. Por favor recarga la página.');
   };
 
+  // Reiniciar trivia
   const handleRestart = () => {
-    console.log('🔄 Mock: Reiniciando...');
+    console.log('🔄 [TriviaApp] Reiniciando trivia...');
     setScreen('start');
-    setShowEvaluation(false);
-    setCurrentQuestionIndex(0);
+    setSessionId('');
+    setCurrentQuestion(null);
+    setUserAnswer('');
+    setEvaluation(null);
+    setProgress(null);
+    setResults(null);
+    setError(null);
+    setNextQuestionPreloaded(null);
+    setIsPreloading(false);
   };
 
-  const progressPercentage = (mockProgress.current / mockProgress.total) * 100;
-  const currentQuestion = mockQuestions[currentQuestionIndex];
+  // Calcular porcentaje de progreso
+  const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
 
   return (
     <div className={styles.container}>
@@ -146,11 +171,19 @@ export default function TriviaTestUI() {
         {screen === 'start' && (
           <div className={styles.startScreen}>
             <div className={styles.header}>
-              <h1 className={styles.title}>🎯 MagnetoQuest Trivia</h1>
+              <img src = "../static/magnetoQuestTrivia.png" alt="MagnetoQuest Trivia" className={styles.logo} />
+              {/* <h1 className={styles.title}>🎯 MagnetoQuest Trivia</h1> */}
               <p className={styles.subtitle}>
                 Pon a prueba tus conocimientos con nuestra IA
               </p>
             </div>
+
+            {error && (
+              <div className={styles.error}>
+                <div className={styles.errorTitle}>❌ Error</div>
+                <div>{error}</div>
+              </div>
+            )}
 
             <div className={styles.configForm}>
               <div className={styles.formGroup}>
@@ -158,9 +191,9 @@ export default function TriviaTestUI() {
                 <input
                   type="text"
                   className={styles.formInput}
-                  value={mockTopicName}
+                  value={topicName}
+                  onChange={(e) => setTopicName(e.target.value)}
                   placeholder="Ej: Programación Backend"
-                  readOnly
                 />
               </div>
 
@@ -168,28 +201,22 @@ export default function TriviaTestUI() {
                 <label className={styles.formLabel}>Descripción detallada</label>
                 <textarea
                   className={styles.formTextarea}
-                  value={mockTopicDescription}
+                  value={topicDescription}
+                  onChange={(e) => setTopicDescription(e.target.value)}
                   placeholder="Describe qué tipo de preguntas quieres..."
-                  readOnly
                 />
               </div>
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Dificultad</label>
-                <select className={styles.formSelect} value="medium">
+                <select
+                  className={styles.formSelect}
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                >
                   <option value="easy">Fácil</option>
                   <option value="medium">Media</option>
                   <option value="hard">Difícil</option>
-                </select>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Número de preguntas</label>
-                <select className={styles.formSelect} value="3">
-                  <option value="3">3 preguntas</option>
-                  <option value="5">5 preguntas</option>
-                  <option value="7">7 preguntas</option>
-                  <option value="10">10 preguntas</option>
                 </select>
               </div>
 
@@ -197,8 +224,9 @@ export default function TriviaTestUI() {
                 <button
                   className={`${styles.button} ${styles.buttonPrimary}`}
                   onClick={handleStartTrivia}
+                  disabled={loading}
                 >
-                  🚀 Comenzar Trivia
+                  {loading ? 'Generando...' : '🚀 Comenzar Trivia'}
                 </button>
               </div>
             </div>
@@ -206,11 +234,11 @@ export default function TriviaTestUI() {
         )}
 
         {/* PANTALLA DE PREGUNTAS */}
-        {screen === 'question' && (
+        {screen === 'question' && currentQuestion && progress && (
           <div>
             <div className={styles.header}>
               <h1 className={styles.title}>🎯 MagnetoQuest Trivia</h1>
-              <p className={styles.subtitle}>{mockTopicName}</p>
+              <p className={styles.subtitle}>{topicName}</p>
             </div>
 
             {/* Barra de progreso */}
@@ -223,50 +251,65 @@ export default function TriviaTestUI() {
               </div>
               <div className={styles.progressText}>
                 <span>
-                  Pregunta {mockProgress.current} de {mockProgress.total}
+                  Pregunta {progress.current} de {progress.total}
                 </span>
                 <span>
-                  Score: {mockProgress.score}/{mockProgress.maxScore} ({mockProgress.percentage}%)
+                  Score: {progress.score}/{progress.maxScore} ({progress.percentage}%)
                 </span>
               </div>
             </div>
 
+            {error && (
+              <div className={styles.error}>
+                <div className={styles.errorTitle}>❌ Error</div>
+                <div>{error}</div>
+              </div>
+            )}
+
             {/* Feedback de la respuesta anterior */}
-            {showEvaluation && (
+            {evaluation && (
               <div
                 className={`${styles.feedbackCard} ${
-                  mockEvaluation.isCorrect ? styles.feedbackCorrect : styles.feedbackIncorrect
+                  evaluation.isCorrect ? styles.feedbackCorrect : styles.feedbackIncorrect
                 }`}
               >
                 <div className={styles.feedbackHeader}>
                   <span className={styles.feedbackIcon}>
-                    {mockEvaluation.isCorrect ? '✅' : '❌'}
+                    {evaluation.isCorrect ? '✅' : '❌'}
                   </span>
                   <span className={styles.feedbackTitle}>
-                    {mockEvaluation.isCorrect ? '¡Correcto!' : 'Incorrecto'}
+                    {evaluation.isCorrect ? '¡Correcto!' : 'Incorrecto'}
                   </span>
                 </div>
                 <div className={styles.feedbackScore}>
-                  Puntuación: {mockEvaluation.score}/10 | Precisión: {mockEvaluation.accuracy}%
+                  Puntuación: {evaluation.score}/10 | Precisión: {evaluation.accuracy}%
                 </div>
-                <div className={styles.feedbackText}>{mockEvaluation.feedback}</div>
+                <div className={styles.feedbackText}>{evaluation.feedback}</div>
                 <div className={styles.expectedAnswer}>
                   <span className={styles.expectedAnswerLabel}>
                     💡 Respuesta esperada:
                   </span>
                   <div className={styles.expectedAnswerText}>
-                    {mockEvaluation.expectedAnswer}
+                    {evaluation.expectedAnswer}
                   </div>
                 </div>
 
-                <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#10b981' }}>
-                  ✅ Siguiente pregunta lista
-                </div>
+                {/* Indicador de precarga */}
+                {isPreloading && (
+                  <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#6b7280' }}>
+                    ⏳ Preparando siguiente pregunta...
+                  </div>
+                )}
+                {nextQuestionPreloaded && !isPreloading && (
+                  <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#10b981' }}>
+                    ✅ Siguiente pregunta lista
+                  </div>
+                )}
               </div>
             )}
 
             {/* Pregunta actual */}
-            {!showEvaluation && (
+            {!evaluation && (
               <>
                 <div className={styles.questionCard}>
                   <div className={styles.questionNumber}>
@@ -286,8 +329,10 @@ export default function TriviaTestUI() {
                   <label className={styles.answerLabel}>Tu respuesta:</label>
                   <textarea
                     className={styles.answerTextarea}
+                    value={userAnswer}
+                    onChange={(e) => setUserAnswer(e.target.value)}
                     placeholder="Escribe tu respuesta detallada aquí..."
-                    defaultValue=""
+                    disabled={loading}
                   />
                 </div>
 
@@ -295,21 +340,27 @@ export default function TriviaTestUI() {
                   <button
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={handleSubmitAnswer}
+                    disabled={loading || !userAnswer.trim()}
                   >
-                    📤 Enviar Respuesta
+                    {loading ? 'Evaluando...' : '📤 Enviar Respuesta'}
                   </button>
                 </div>
               </>
             )}
 
             {/* Botón para continuar */}
-            {showEvaluation && (
+            {evaluation && (
               <div className={styles.buttonContainer}>
                 <button
                   className={`${styles.button} ${styles.buttonPrimary}`}
                   onClick={handleNextQuestion}
+                  disabled={!nextQuestionPreloaded || isPreloading}
                 >
-                  ➡️ Continuar (Instantáneo)
+                  {isPreloading 
+                    ? '⏳ Cargando...' 
+                    : nextQuestionPreloaded 
+                      ? '➡️ Continuar (Instantáneo)' 
+                      : '⏳ Preparando...'}
                 </button>
               </div>
             )}
@@ -317,43 +368,43 @@ export default function TriviaTestUI() {
         )}
 
         {/* PANTALLA DE RESULTADOS */}
-        {screen === 'results' && (
+        {screen === 'results' && results && (
           <div className={styles.resultsScreen}>
             <div className={styles.header}>
               <h1 className={styles.title}>🏆 ¡Trivia Completada!</h1>
             </div>
 
             <div className={styles.resultsScore}>
-              {mockResults.percentage}%
+              {results.percentage}%
             </div>
             <div className={styles.resultsTitle}>
-              {mockResults.totalScore} de {mockResults.maxScore} puntos
+              {results.totalScore} de {results.maxScore} puntos
             </div>
 
             <div className={styles.statsGrid}>
               <div className={styles.statCard}>
-                <div className={styles.statValue}>{mockResults.summary.correctAnswers}</div>
+                <div className={styles.statValue}>{results.summary.correctAnswers}</div>
                 <div className={styles.statLabel}>Correctas</div>
               </div>
               <div className={styles.statCard}>
-                <div className={styles.statValue}>{mockResults.summary.incorrectAnswers}</div>
+                <div className={styles.statValue}>{results.summary.incorrectAnswers}</div>
                 <div className={styles.statLabel}>Incorrectas</div>
               </div>
               <div className={styles.statCard}>
-                <div className={styles.statValue}>{mockResults.summary.averageAccuracy}%</div>
+                <div className={styles.statValue}>{results.summary.averageAccuracy}%</div>
                 <div className={styles.statLabel}>Precisión promedio</div>
               </div>
               <div className={styles.statCard}>
-                <div className={styles.statValue}>{mockResults.duration}s</div>
+                <div className={styles.statValue}>{results.duration}s</div>
                 <div className={styles.statLabel}>Tiempo total</div>
               </div>
             </div>
 
-            {mockResults.summary.strongAreas.length > 0 && (
+            {results.summary.strongAreas.length > 0 && (
               <div className={styles.summarySection}>
                 <div className={styles.summaryTitle}>💪 Áreas fuertes:</div>
                 <div className={styles.areasList}>
-                  {mockResults.summary.strongAreas.map((area, index) => (
+                  {results.summary.strongAreas.map((area, index) => (
                     <span key={index} className={`${styles.areaTag} ${styles.strongArea}`}>
                       {area}
                     </span>
@@ -362,11 +413,11 @@ export default function TriviaTestUI() {
               </div>
             )}
 
-            {mockResults.summary.weakAreas.length > 0 && (
+            {results.summary.weakAreas.length > 0 && (
               <div className={styles.summarySection}>
                 <div className={styles.summaryTitle}>📚 Áreas a mejorar:</div>
                 <div className={styles.areasList}>
-                  {mockResults.summary.weakAreas.map((area, index) => (
+                  {results.summary.weakAreas.map((area, index) => (
                     <span key={index} className={`${styles.areaTag} ${styles.weakArea}`}>
                       {area}
                     </span>
@@ -383,6 +434,14 @@ export default function TriviaTestUI() {
                 🔄 Nueva Trivia
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Loading general */}
+        {loading && screen === 'start' && (
+          <div className={styles.loading}>
+            <div className={styles.spinner} />
+            <div className={styles.loadingText}>Generando tu trivia personalizada...</div>
           </div>
         )}
       </div>
