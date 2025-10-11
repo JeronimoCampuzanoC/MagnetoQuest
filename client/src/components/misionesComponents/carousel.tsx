@@ -27,26 +27,6 @@ type Props = {
 };
 
 const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800 }) => {
-  // const [index, setIndex] = useState(0); // índice del item activo (centro)
-
-  // // bucle infinito
-  // const next = () => setIndex((i) => (i + 1) % DATA.length);
-  // const prev = () => setIndex((i) => (i - 1 + DATA.length) % DATA.length);
-
-  // // autoplay
-  // useEffect(() => {
-  //   const t = setInterval(next, autoPlayMs);
-  //   return () => clearInterval(t);
-  // }, [autoPlayMs]);
-
-  // // para render fácil: tomamos 5 items en orden rotado (siempre son 5)
-  // const ring = useMemo(() => {
-  //   const arr = [...DATA];
-  //   return arr.map((_, i) => arr[(index + i) % arr.length]);
-  // }, [index]);
-
-  // const varName = "swiper-slide"
-
   return (
     <div className={styles.wrapper}>
       <h2 className={styles.title}>Decide un estilo de juego</h2>

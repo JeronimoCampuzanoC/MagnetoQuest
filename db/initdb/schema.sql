@@ -10,6 +10,7 @@ CREATE TABLE app_user (
     name TEXT NOT NULL,
     email TEXT,
     sector TEXT,
+    interest_field TEXT,
     target_position TEXT,
     minimum_salary NUMERIC(12, 2),
     education_level TEXT,
@@ -35,7 +36,8 @@ CREATE TABLE project (
     description TEXT,
     url TEXT,
     preview_image TEXT,
-    document TEXT
+    document TEXT,
+    project_date DATE
 );
 
 CREATE TABLE certificate (

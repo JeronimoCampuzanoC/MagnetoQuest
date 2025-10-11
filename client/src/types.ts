@@ -1,0 +1,1 @@
+export type OptionItem = { id: string; text: string; active: boolean };
