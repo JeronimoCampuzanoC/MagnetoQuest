@@ -25,7 +25,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # - ./initdb:/docker-entrypoint-initdb.d:ro  # ← Comentado temporalmente
+      - ./initdb:/docker-entrypoint-initdb.d  # ← Sin :ro para evitar problemas de permisos
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db"]
       interval: 2s
@@ -46,7 +46,7 @@ services:
       - "5433:5432"                   # ← puerto 5433 en el host
     volumes:
       - pgdata_test:/var/lib/postgresql/data
-      # - ./initdb_test:/docker-entrypoint-initdb.d:ro  # ← Comentado temporalmente
+      - ./initdb_test:/docker-entrypoint-initdb.d  # ← Sin :ro para evitar problemas de permisos
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db"]
       interval: 2s
