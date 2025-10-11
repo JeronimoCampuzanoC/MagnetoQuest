@@ -167,12 +167,20 @@ app.use('/api/trivia', triviaProxyRoutes);
 const PORT = process.env.PORT || 4000;
 
 // Inicializa TypeORM y arranca el server
+interface TypeORMInitSuccess {
+  (): void;
+}
+
+interface TypeORMInitError {
+  (err: unknown): void;
+}
+
 AppDataSource.initialize()
-  .then(() => {
+  .then(((): void => {
     console.log('✅ TypeORM conectado');
-    app.listen(PORT, () => console.log(`API http://localhost:${PORT}`));
-  })
-  .catch((err) => {
+    app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
+  }) as TypeORMInitSuccess)
+  .catch(((err: unknown): void => {
     console.error('❌ Error al conectar TypeORM', err);
     process.exit(1);
-  });
+  }) as TypeORMInitError);

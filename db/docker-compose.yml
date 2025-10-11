@@ -1,6 +1,18 @@
+# Comando para correr la base de datos de desarrollo: 
+# docker compose up -d db
+
 # Comando para correr la base de datos de test: 
 # docker compose --profile test up -d db_test
+
+# Si genera problemas limpiar las redes
+# docker compose --profile test down --remove-orphans
+# docker network prune -f 
+# docker compose --profile test up -d db_test
+
+version: '3.8'
+
 services:
+  # Base de datos de DESARROLLO
   db:
     image: postgres:16
     container_name: poc-postgres
@@ -13,13 +25,14 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./initdb:/docker-entrypoint-initdb.d:ro
+      # - ./initdb:/docker-entrypoint-initdb.d:ro  # ← Comentado temporalmente
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db"]
       interval: 2s
       timeout: 3s
       retries: 20
 
+  # Base de datos de TEST
   db_test:
     profiles: ["test"]                # ← solo se levanta con --profile test
     image: postgres:16
@@ -30,12 +43,12 @@ services:
       POSTGRES_PASSWORD: poc_pass
       POSTGRES_DB: poc_db
     ports:
-      - "5432:5432"                   # ← otro puerto en el host
+      - "5433:5432"                   # ← puerto 5433 en el host
     volumes:
       - pgdata_test:/var/lib/postgresql/data
-      - ./initdb_test:/docker-entrypoint-initdb.d:ro
+      # - ./initdb_test:/docker-entrypoint-initdb.d:ro  # ← Comentado temporalmente
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db_test"]
+      test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db"]
       interval: 2s
       timeout: 3s
       retries: 20

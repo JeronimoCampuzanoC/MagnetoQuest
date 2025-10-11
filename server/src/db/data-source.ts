@@ -15,14 +15,14 @@ import { NotificationLog } from '../entities/NotificationLog';
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5432),
+  port: Number(process.env.DB_PORT ?? 5433), // ← CORREGIDO: puerto 5433 para test
   username: process.env.DB_USER ?? 'poc_user',
   password: process.env.DB_PASS ?? 'poc_pass',
-  database: process.env.DB_NAME ?? 'poc_db_test',
-  synchronize: false, // <- Change to false for production
-  logging: true, // <- Enable logging to debug connection issues
-  migrationsRun: true, // <- Automatically run migrations
-    entities: [
+  database: process.env.DB_NAME ?? 'poc_db',
+  synchronize: false,
+  logging: true,
+  migrationsRun: true,
+  entities: [
     AppUser, Resume, Project, Certificate,
     Badge, BadgeProgress,
     Mission, UserMissionProgress,
