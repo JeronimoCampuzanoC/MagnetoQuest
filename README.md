@@ -3,7 +3,9 @@
 MagnetoQuest is a web platform for job seekers, designed to encourage continuous engagement through gamification. Unlike services that focus solely on resumes, MagnetoQuest helps users improve their skills, strengthen their CV, and build connections, creating a more interactive and engaging experience.
 
 ## Create .env
-
+```bash
+touch .env
+```
 DATABASE_URL=postgres://poc_user:poc_pass@localhost:5432/poc_db
 
 ## Dependencies
@@ -23,12 +25,14 @@ react-router-dom
 ## Setup client
 
 ```bash
+cd client
 npm install
 npm start
 ```
 
 ## Setup server
 ```bash
+cd server
 npm install
 npm run dev
 ```
