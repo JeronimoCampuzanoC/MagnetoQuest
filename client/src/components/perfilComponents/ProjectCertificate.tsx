@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Modal from "react-modal";
+import { AuthService } from "../../services/authService";
 
 // Reusable type for a project card
 type ProjectItem = {
@@ -48,12 +49,46 @@ const ProjectCertificate: React.FC = () => {
     const fetchProjects = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/projects');
+            const currentUserId = AuthService.getCurrentUserId();
+
+            console.log('Fetching projects for user:', currentUserId);
+
+            if (!currentUserId) {
+                console.error('No user logged in');
+                setProjects([]);
+                return;
+            }
+
+            const url = `/api/projects?userId=${currentUserId}`;
+            console.log('Fetching from URL:', url);
+            const response = await fetch(url);
+            console.log('Response status:', response.status);
+
             if (response.ok) {
                 const projectsData = await response.json();
-                setProjects(projectsData);
+                console.log('Raw projects data:', projectsData);
+                console.log('First project structure:', projectsData[0]);
+
+                // Transform API response to match our TypeScript interface
+                const transformedProjects = projectsData.map((project: any) => ({
+                    projectId: project.project_id,
+                    title: project.title,
+                    description: project.description,
+                    userId: project.user_id,
+                    url: project.url,
+                    previewImage: project.preview_image,
+                    document: project.document,
+                    projectDate: project.project_date
+                }));
+
+                // Filter by current user as additional safety measure
+                const userProjects = transformedProjects.filter((project: ProjectItem) => project.userId === currentUserId);
+                console.log('Filtered user projects:', userProjects);
+                setProjects(userProjects);
             } else {
-                console.error('Failed to fetch projects');
+                console.error('Failed to fetch projects, status:', response.status);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
             }
         } catch (error) {
             console.error('Error fetching projects:', error);
@@ -66,12 +101,44 @@ const ProjectCertificate: React.FC = () => {
     const fetchCertificates = async () => {
         try {
             setCertificateLoading(true);
-            const response = await fetch('/api/certificates');
+            const currentUserId = AuthService.getCurrentUserId();
+
+            console.log('Fetching certificates for user:', currentUserId);
+
+            if (!currentUserId) {
+                console.error('No user logged in');
+                setCertificates([]);
+                return;
+            }
+
+            const url = `/api/certificates?userId=${currentUserId}`;
+            console.log('Fetching from URL:', url);
+            const response = await fetch(url);
+            console.log('Response status:', response.status);
+
             if (response.ok) {
                 const certificatesData = await response.json();
-                setCertificates(certificatesData);
+                console.log('Raw certificates data:', certificatesData);
+                console.log('First certificate structure:', certificatesData[0]);
+
+                // Transform API response to match our TypeScript interface
+                const transformedCertificates = certificatesData.map((certificate: any) => ({
+                    certificateId: certificate.certificate_id,
+                    title: certificate.title,
+                    description: certificate.description,
+                    userId: certificate.user_id,
+                    image: certificate.image,
+                    validationLink: certificate.validation_link
+                }));
+
+                // Filter by current user as additional safety measure
+                const userCertificates = transformedCertificates.filter((certificate: CertificateItem) => certificate.userId === currentUserId);
+                console.log('Filtered user certificates:', userCertificates);
+                setCertificates(userCertificates);
             } else {
-                console.error('Failed to fetch certificates');
+                console.error('Failed to fetch certificates, status:', response.status);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
             }
         } catch (error) {
             console.error('Error fetching certificates:', error);
@@ -84,6 +151,7 @@ const ProjectCertificate: React.FC = () => {
     useEffect(() => {
         fetchProjects();
         fetchCertificates();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const openModal = () => setModalIsOpen(true);
@@ -144,18 +212,32 @@ const ProjectCertificate: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        const currentUserId = AuthService.getCurrentUserId();
+        if (!currentUserId) {
+            alert('Error: Usuario no autenticado');
+            return;
+        }
+
         try {
-            // Send data to backend
+            // Send data to backend with user ID
+            const projectData = {
+                ...formData,
+                userId: currentUserId
+            };
+
             const response = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(projectData),
             });
+
             if (response.ok) {
                 // Handle success - refresh projects list and close modal
                 await fetchProjects();
                 setFormData({ name: '', description: '', projectDate: '', url: '' }); // Reset form
                 closeModal();
+                alert('Proyecto creado exitosamente');
             } else {
                 // Handle error
                 console.error('Failed to submit data');
@@ -169,18 +251,32 @@ const ProjectCertificate: React.FC = () => {
 
     const handleCertificateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        const currentUserId = AuthService.getCurrentUserId();
+        if (!currentUserId) {
+            alert('Error: Usuario no autenticado');
+            return;
+        }
+
         try {
-            // Send data to backend
+            // Send data to backend with user ID
+            const certificateData = {
+                ...certificateFormData,
+                userId: currentUserId
+            };
+
             const response = await fetch('/api/certificates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(certificateFormData),
+                body: JSON.stringify(certificateData),
             });
+
             if (response.ok) {
                 // Handle success - refresh certificates list and close modal
                 await fetchCertificates();
                 setCertificateFormData({ name: '', description: '' }); // Reset form
                 closeCertificateModal();
+                alert('Certificado creado exitosamente');
             } else {
                 // Handle error
                 console.error('Failed to submit certificate');
@@ -193,6 +289,12 @@ const ProjectCertificate: React.FC = () => {
     };
 
     const handleDeleteProject = async (projectId: string, projectTitle: string) => {
+        const currentUserId = AuthService.getCurrentUserId();
+        if (!currentUserId) {
+            alert('Error: Usuario no autenticado');
+            return;
+        }
+
         const confirmDelete = window.confirm(
             `¿Estás seguro de que quieres eliminar el proyecto "${projectTitle}"?\n\nEsta acción no se puede deshacer.`
         );
@@ -224,6 +326,18 @@ const ProjectCertificate: React.FC = () => {
         e.preventDefault();
 
         if (!editingProject) {
+            return;
+        }
+
+        const currentUserId = AuthService.getCurrentUserId();
+        if (!currentUserId) {
+            alert('Error: Usuario no autenticado');
+            return;
+        }
+
+        // Security check: ensure user can only edit their own projects
+        if (editingProject.userId !== currentUserId) {
+            alert('Error: No tienes permiso para editar este proyecto');
             return;
         }
 
@@ -263,6 +377,12 @@ const ProjectCertificate: React.FC = () => {
     };
 
     const handleDeleteCertificate = async (certificateId: string, certificateTitle: string) => {
+        const currentUserId = AuthService.getCurrentUserId();
+        if (!currentUserId) {
+            alert('Error: Usuario no autenticado');
+            return;
+        }
+
         const confirmDelete = window.confirm(
             `¿Estás seguro de que quieres eliminar el certificado "${certificateTitle}"?\n\nEsta acción no se puede deshacer.`
         );
@@ -294,6 +414,18 @@ const ProjectCertificate: React.FC = () => {
         e.preventDefault();
 
         if (!editingCertificate) {
+            return;
+        }
+
+        const currentUserId = AuthService.getCurrentUserId();
+        if (!currentUserId) {
+            alert('Error: Usuario no autenticado');
+            return;
+        }
+
+        // Security check: ensure user can only edit their own certificates
+        if (editingCertificate.userId !== currentUserId) {
+            alert('Error: No tienes permiso para editar este certificado');
             return;
         }
 

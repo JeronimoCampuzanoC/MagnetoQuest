@@ -57,8 +57,8 @@ const Login: React.FC = () => {
                 AuthService.saveSession(user);
                 // Dispatch custom event to notify App component
                 window.dispatchEvent(new Event("login"));
-                // Navigate to home
-                navigate("/home");
+                // Navigate to missions
+                navigate("/misiones");
             } else {
                 setError("Usuario no encontrado. Usuarios disponibles: " + availableUsers.join(", "));
             }

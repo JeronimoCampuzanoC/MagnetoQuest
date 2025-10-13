@@ -160,6 +160,58 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
+// ACTUALIZAR proyecto
+app.put('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, projectDate, url } = req.body ?? {};
+    
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name requerido' });
+    }
+    
+    const repo = AppDataSource.getRepository(Project);
+    const project = await repo.findOne({ where: { project_id: id } });
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+    
+    project.title = name.trim();
+    project.description = description?.trim() || '';
+    project.url = url?.trim() || null;
+    
+    if (projectDate) {
+      project.project_date = new Date(projectDate);
+    }
+    
+    await repo.save(project);
+    res.json(project);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// ELIMINAR proyecto
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const repo = AppDataSource.getRepository(Project);
+    
+    const project = await repo.findOne({ where: { project_id: id } });
+    if (!project) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+    
+    await repo.remove(project);
+    res.json({ message: 'Proyecto eliminado' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 // 👇 AUTHENTICATION ENDPOINT
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -196,6 +248,105 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// CREAR certificado
+app.post('/api/certificates', async (req, res) => {
+  try {
+    const { name, description, userId } = req.body ?? {};
+    
+    // Validate required fields
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name requerido' });
+    }
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId requerido' });
+    }
+    
+    const repo = AppDataSource.getRepository(Certificate);
+    const certificate = repo.create({
+      title: name.trim(),
+      description: description?.trim() || '',
+      user_id: userId
+    });
+    
+    await repo.save(certificate);
+    res.status(201).json(certificate);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// LISTAR certificados
+app.get('/api/certificates', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const repo = AppDataSource.getRepository(Certificate);
+    
+    let certificates;
+    if (userId) {
+      certificates = await repo.find({ 
+        where: { user_id: userId as string },
+        order: { certificate_id: 'ASC' }
+      });
+    } else {
+      certificates = await repo.find({ order: { certificate_id: 'ASC' } });
+    }
+    
+    res.json(certificates);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// ACTUALIZAR certificado
+app.put('/api/certificates/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body ?? {};
+    
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name requerido' });
+    }
+    
+    const repo = AppDataSource.getRepository(Certificate);
+    const certificate = await repo.findOne({ where: { certificate_id: id } });
+    
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificado no encontrado' });
+    }
+    
+    certificate.title = name.trim();
+    certificate.description = description?.trim() || '';
+    
+    await repo.save(certificate);
+    res.json(certificate);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// ELIMINAR certificado
+app.delete('/api/certificates/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const repo = AppDataSource.getRepository(Certificate);
+    
+    const certificate = await repo.findOne({ where: { certificate_id: id } });
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificado no encontrado' });
+    }
+    
+    await repo.remove(certificate);
+    res.json({ message: 'Certificado eliminado' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'DB error' });
   }
 });
 
