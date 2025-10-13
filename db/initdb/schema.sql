@@ -76,15 +76,9 @@ CREATE TABLE mission (
     description TEXT,
     category TEXT,
     xp_reward INT NOT NULL DEFAULT 10 CHECK (xp_reward >= 0),
-    starts_at TIMESTAMPTZ,
-    ends_at TIMESTAMPTZ,
+    objective INT NOT NULL DEFAULT 1 CHECK (objective >= 1),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CHECK (
-        ends_at IS NULL
-        OR starts_at IS NULL
-        OR ends_at > starts_at
-    )
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE user_mission_progress (
@@ -93,8 +87,15 @@ CREATE TABLE user_mission_progress (
     mission_id UUID NOT NULL REFERENCES mission (mission_id) ON DELETE CASCADE,
     status mission_status NOT NULL DEFAULT 'not_started',
     progress INT NOT NULL DEFAULT 0 CHECK (progress >= 0),
+    starts_at TIMESTAMPTZ,
+    ends_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
-    UNIQUE (user_id, mission_id)
+    UNIQUE (user_id, mission_id),
+    CHECK (
+        ends_at IS NULL
+        OR starts_at IS NULL
+        OR ends_at > starts_at
+    )
 );
 
 CREATE TABLE trivia_question (
@@ -242,42 +243,42 @@ INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at) VALUES
 -- =========================
 -- SEED: MISSION (10)
 -- =========================
-INSERT INTO mission (title, description, category, xp_reward, starts_at, ends_at, is_active) VALUES
-('Completa tu perfil', 'Añade tu información básica',       'onboarding', 20, NOW() - INTERVAL '7 days',  NOW() + INTERVAL '30 days', TRUE),
-('Sube un proyecto',   'Publica tu primer proyecto',        'proyectos',  15, NOW() - INTERVAL '6 days',  NOW() + INTERVAL '25 days', TRUE),
-('Consigue 3 certs',   'Agrega 3 certificados',             'certificados',40, NOW() - INTERVAL '5 days', NOW() + INTERVAL '40 days', TRUE),
-('Responde 5 trivias', 'Practica con trivias',              'trivia',     30, NOW() - INTERVAL '4 days',  NOW() + INTERVAL '20 days', TRUE),
-('Mejora CV',          'Agrega experiencia al CV',          'cv',         25, NOW() - INTERVAL '10 days', NOW() + INTERVAL '10 days', TRUE),
-('Portfolio',          'Crea tu portafolio online',         'proyectos',  35, NOW() - INTERVAL '12 days', NOW() + INTERVAL '60 days', TRUE),
-('Refactor perfil',    'Completa campos avanzados',         'onboarding', 15, NOW() - INTERVAL '2 days',  NOW() + INTERVAL '15 days', TRUE),
-('Habilidades',        'Lista 5 habilidades clave',         'cv',         10, NOW() - INTERVAL '3 days',  NOW() + INTERVAL '12 days', TRUE),
-('CI/CD básico',       'Configura pipelines',               'devops',     50, NOW() - INTERVAL '8 days',  NOW() + INTERVAL '45 days', TRUE),
-('Soft skills',        'Completa cuestionario soft skills', 'formación',  10, NOW() - INTERVAL '1 days',  NOW() + INTERVAL '7 days',  TRUE);
+INSERT INTO mission (title, description, category, xp_reward, objective, is_active) VALUES
+('Completa tu perfil', 'Añade tu información básica',       'onboarding', 20, 1,  TRUE),
+('Sube un proyecto',   'Publica tu primer proyecto',        'proyectos',  15, 1,  TRUE),
+('Consigue 3 certs',   'Agrega 3 certificados',             'certificados',40, 3, TRUE),
+('Responde 5 trivias', 'Practica con trivias',              'trivia',     30, 5,  TRUE),
+('Mejora CV',          'Agrega experiencia al CV',          'cv',         25, 1,  TRUE),
+('Portfolio',          'Crea tu portafolio online',         'proyectos',  35, 1,  TRUE),
+('Refactor perfil',    'Completa campos avanzados',         'onboarding', 15, 1,  TRUE),
+('Habilidades',        'Lista 5 habilidades clave',         'cv',         10, 5,  TRUE),
+('CI/CD básico',       'Configura pipelines',               'devops',     50, 1,  TRUE),
+('Soft skills',        'Completa cuestionario soft skills', 'formación',  10, 1,  TRUE);
 
 -- =========================
 -- SEED: USER_MISSION_PROGRESS (10)  (pares únicos)
 -- =========================
-INSERT INTO user_mission_progress (user_id, mission_id, status, progress, completed_at) VALUES
+INSERT INTO user_mission_progress (user_id, mission_id, status, progress, starts_at, ends_at, completed_at) VALUES
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 0), 'in_progress', 40, NULL),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 0), 'in_progress', 40, NOW() - INTERVAL '7 days',  NOW() + INTERVAL '23 days', NULL),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 1),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 1), 'completed',   100, NOW() - INTERVAL '1 day'),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 1), 'completed',   100, NOW() - INTERVAL '6 days', NOW() + INTERVAL '24 days', NOW() - INTERVAL '1 day'),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 2), 'not_started', 0,  NULL),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 2), 'not_started', 0,  NOW() - INTERVAL '5 days', NOW() + INTERVAL '35 days', NULL),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 3), 'in_progress', 70, NULL),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 3), 'in_progress', 70, NOW() - INTERVAL '4 days',  NOW() + INTERVAL '16 days', NULL),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 4),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 4), 'in_progress', 30, NULL),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 4), 'in_progress', 30, NOW() - INTERVAL '10 days', NOW() + INTERVAL '23 hours',  NULL),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 5), 'not_started', 0,  NULL),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 5), 'not_started', 0,  NOW() - INTERVAL '12 days', NOW() + INTERVAL '48 days', NULL),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 6),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 6), 'completed',   100, NOW() - INTERVAL '2 days'),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 6), 'completed',   100, NOW() - INTERVAL '2 days', NOW() + INTERVAL '13 days', NOW() - INTERVAL '2 days'),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 7), 'in_progress', 55, NULL),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 7), 'in_progress', 55, NOW() - INTERVAL '3 days',  NOW() + INTERVAL '9 days',  NULL),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 8), 'in_progress', 20, NULL),
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 8), 'in_progress', 20, NOW() - INTERVAL '8 days',  NOW() + INTERVAL '37 days', NULL),
 ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9),
- (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 9), 'not_started', 0,  NULL);
+ (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 9), 'not_started', 0,  NOW() - INTERVAL '1 days',  NOW() + INTERVAL '12 hours',  NULL);
 
 -- =========================
 -- SEED: TRIVIA_QUESTION (10)

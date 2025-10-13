@@ -185,4 +185,118 @@ export class EmailService {
 
     await this.sendMotivationalEmail(email, name, subject, htmlContent, userId);
   }
+
+  async sendMissionDeadlineReminder(
+    userId: string, 
+    email: string, 
+    name: string, 
+    missionTitle: string,
+    hoursRemaining: number,
+    progress: number
+  ): Promise<void> {
+    // Validación de parámetros
+    if (!name || !email || !userId || !missionTitle) {
+      console.error('Missing required parameters:', { userId, email, name, missionTitle });
+      throw new Error('Missing required parameters for mission deadline reminder');
+    }
+
+    const firstName = name.split(' ')[0];
+    const subject = `⏰ Tu misión "${missionTitle}" vence pronto`;
+    
+    // Calcular tiempo restante en formato legible
+    let timeRemaining = '';
+    if (hoursRemaining < 1) {
+      const minutesRemaining = Math.floor(hoursRemaining * 60);
+      timeRemaining = `${minutesRemaining} minutos`;
+    } else if (hoursRemaining < 24) {
+      timeRemaining = `${Math.floor(hoursRemaining)} horas`;
+    } else {
+      const daysRemaining = Math.floor(hoursRemaining / 24);
+      const remainingHours = Math.floor(hoursRemaining % 24);
+      timeRemaining = daysRemaining === 1 
+        ? `1 día${remainingHours > 0 ? ` y ${remainingHours} horas` : ''}`
+        : `${daysRemaining} días${remainingHours > 0 ? ` y ${remainingHours} horas` : ''}`;
+    }
+
+    // Mensaje de urgencia según el tiempo restante
+    let urgencyLevel = '';
+    let backgroundColor = '';
+    let borderColor = '';
+    let urgencyEmoji = '';
+    
+    if (hoursRemaining < 6) {
+      urgencyLevel = '🚨 ¡URGENTE! ¡Solo quedan pocas horas!';
+      backgroundColor = '#fef2f2';
+      borderColor = '#dc2626';
+      urgencyEmoji = '🚨';
+    } else if (hoursRemaining < 24) {
+      urgencyLevel = '⚠️ ¡Atención! Menos de un día restante';
+      backgroundColor = '#fef3c7';
+      borderColor = '#f59e0b';
+      urgencyEmoji = '⚠️';
+    } else {
+      urgencyLevel = '⏰ Recordatorio: Tu misión vence pronto';
+      backgroundColor = '#dbeafe';
+      borderColor = '#3b82f6';
+      urgencyEmoji = '⏰';
+    }
+
+    // Mensaje de progreso
+    let progressMessage = '';
+    if (progress === 100) {
+      progressMessage = '🎉 ¡Genial! Has completado esta misión. Solo falta marcarla como terminada.';
+    } else if (progress >= 75) {
+      progressMessage = `🔥 ¡Excelente progreso! Vas al ${progress}%. ¡Ya casi terminas!`;
+    } else if (progress >= 50) {
+      progressMessage = `💪 Buen avance: ${progress}% completado. ¡Sigue así!`;
+    } else if (progress >= 25) {
+      progressMessage = `🚀 Progreso: ${progress}% completado. ¡Puedes lograrlo!`;
+    } else {
+      progressMessage = `⭐ Progreso: ${progress}% completado. ¡Es momento de acelerar!`;
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #1f2937; text-align: center;">¡Hola, ${firstName}!</h2>
+        
+        <div style="background-color: ${backgroundColor}; border-left: 4px solid ${borderColor}; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <p style="margin: 0; font-weight: bold; color: #1f2937; font-size: 18px; text-align: center;">
+            ${urgencyLevel}
+          </p>
+          <p style="margin: 15px 0 5px 0; color: #374151; font-size: 16px; text-align: center;">
+            <strong>"${missionTitle}"</strong>
+          </p>
+          <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+            ⏳ Tiempo restante: <strong>${timeRemaining}</strong>
+          </p>
+        </div>
+
+        <div style="background-color: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 8px;">
+          <p style="margin: 0; color: #374151; font-size: 14px;">
+            ${progressMessage}
+          </p>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; text-align: center;">
+          ${hoursRemaining < 6 
+            ? '¡No dejes que se te escape! Completa tu misión ahora mismo.' 
+            : 'Aprovecha el tiempo que te queda para completar esta misión.'
+          }
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/missions" 
+             style="background-color: ${borderColor}; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+            ${urgencyEmoji} ¡Ir a Misiones!
+          </a>
+        </div>
+
+        <p style="color: #6b7280; font-size: 12px; text-align: center; margin-top: 30px;">
+          MagnetoQuest - No dejes que las oportunidades se escapen
+        </p>
+      </div>
+    `;
+
+    await this.sendMotivationalEmail(email, name, subject, htmlContent, userId);
+  }
 }

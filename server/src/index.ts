@@ -53,6 +53,17 @@ app.post('/api/test/notifications/evening', async (_req, res) => {
   }
 });
 
+app.post('/api/test/notifications/mission-deadline', async (_req, res) => {
+  try {
+    const notificationService = new NotificationService();
+    await notificationService.testMissionDeadlineNotifications();
+    res.json({ message: 'Mission deadline notifications test completed' });
+  } catch (error) {
+    console.error('Error testing mission deadline notifications:', error);
+    res.status(500).json({ error: 'Failed to test mission deadline notifications' });
+  }
+});
+
 // Endpoints para gestionar user_progress
 app.get('/api/users/:userId/progress', async (req, res) => {
   try {

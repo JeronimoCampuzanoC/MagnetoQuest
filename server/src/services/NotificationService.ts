@@ -2,6 +2,8 @@ import cron from 'node-cron';
 import { AppDataSource } from '../db/data-source';
 import { UserProgress } from '../entities/UserProgress';
 import { AppUser } from '../entities/AppUser';
+import { UserMissionProgress } from '../entities/UserMissionProgress';
+import { Mission } from '../entities/Mission';
 import { EmailService } from './EmailService';
 
 export class NotificationService {
@@ -39,6 +41,14 @@ export class NotificationService {
     cron.schedule('0 5 * * *', async () => {
       console.log('Resetting daily progress at midnight Colombia time');
       await this.resetDailyProgress();
+    }, {
+      timezone: 'America/Bogota'
+    });
+
+    // Cron job para notificaciones de misiones próximas a vencer a las 2:00 PM hora de Colombia
+    cron.schedule('0 19 * * *', async () => {
+      console.log('Running mission deadline notifications at 2:00 PM Colombia time');
+      await this.sendMissionDeadlineNotifications();
     }, {
       timezone: 'America/Bogota'
     });
@@ -160,5 +170,77 @@ export class NotificationService {
     } catch (error) {
       console.error('Error resetting daily progress:', error);
     }
+  }
+
+  /**
+   * Envía notificaciones para misiones que vencen en menos de 24 horas
+   */
+  private async sendMissionDeadlineNotifications(): Promise<void> {
+    try {
+      const missionsNearDeadline = await this.getMissionsNearDeadline();
+      
+      console.log(`Sending mission deadline notifications to ${missionsNearDeadline.length} users`);
+
+      for (const missionData of missionsNearDeadline) {
+        try {
+          // Calcular horas restantes
+          const now = new Date();
+          const endDate = new Date(missionData.ends_at);
+          const hoursRemaining = (endDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+          await this.emailService.sendMissionDeadlineReminder(
+            missionData.user_id,
+            missionData.email,
+            missionData.name,
+            missionData.mission_title,
+            hoursRemaining,
+            missionData.progress || 0
+          );
+          
+          console.log(`Mission deadline notification sent to ${missionData.email} for "${missionData.mission_title}"`);
+        } catch (error) {
+          console.error(`Failed to send mission deadline notification to ${missionData.email}:`, error);
+        }
+      }
+
+      console.log('Mission deadline notifications batch completed');
+    } catch (error) {
+      console.error('Error in sendMissionDeadlineNotifications:', error);
+    }
+  }
+
+  /**
+   * Obtiene misiones que vencen en menos de 24 horas y no están completadas
+   */
+  private async getMissionsNearDeadline(): Promise<any[]> {
+    const userMissionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+    
+    const query = userMissionProgressRepo
+      .createQueryBuilder('ump')
+      .innerJoin(AppUser, 'au', 'au.id_app_user = ump.user_id')
+      .innerJoin(Mission, 'm', 'm.mission_id = ump.mission_id')
+      .select('ump.user_id', 'user_id')
+      .addSelect('au.name', 'name')
+      .addSelect('au.email', 'email')
+      .addSelect('m.title', 'mission_title')
+      .addSelect('ump.progress', 'progress')
+      .addSelect('ump.ends_at', 'ends_at')
+      .where('ump.ends_at IS NOT NULL')
+      .andWhere('ump.ends_at > NOW()') // Solo misiones que no han vencido
+      .andWhere('ump.ends_at <= NOW() + INTERVAL \'24 hours\'') // Que vencen en las próximas 24 horas
+      .andWhere('ump.status != :completedStatus', { completedStatus: 'completed' }) // Que no estén completadas
+      .andWhere('au.email IS NOT NULL')
+      .andWhere("au.email != ''");
+
+    const result = await query.getRawMany();
+    return result;
+  }
+
+  /**
+   * Método manual para probar las notificaciones de deadline (útil para desarrollo)
+   */
+  public async testMissionDeadlineNotifications(): Promise<void> {
+    console.log('Testing mission deadline notifications...');
+    await this.sendMissionDeadlineNotifications();
   }
 }
