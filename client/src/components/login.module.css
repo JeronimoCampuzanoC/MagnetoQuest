@@ -67,7 +67,7 @@
 }
 
 .loginCard .btn-primary {
-  background: #2b2f7f; /* Same color as app's primary color */
+  background: linear-gradient(135deg, #4b00a7 0%, #230158 100%); /* Same color as app's primary color */
   border: none;
   border-radius: 12px;
   padding: 14px 20px;

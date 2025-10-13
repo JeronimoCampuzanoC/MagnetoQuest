@@ -126,3 +126,12 @@ CREATE TABLE notification_log (
     sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     metadata JSONB
 );
+
+-- Insert sample users for testing authentication
+INSERT INTO app_user (name, email, sector, target_position, city) VALUES
+    ('admin', 'admin@magnetoquest.com', 'Tecnología', 'Administrador de Sistemas', 'Bogotá'),
+    ('Ana García', 'ana.garcia@email.com', 'Desarrollo de Software', 'Desarrolladora Frontend', 'Medellín'),
+    ('Carlos López', 'carlos.lopez@email.com', 'Ingeniería', 'Ingeniero de Software', 'Cali'),
+    ('María Rodriguez', 'maria.rodriguez@email.com', 'Diseño UX/UI', 'Diseñadora UX Senior', 'Barranquilla'),
+    ('Juan Pérez', 'juan.perez@email.com', 'Ciencia de Datos', 'Científico de Datos', 'Bogotá'),
+    ('testuser', 'test@magnetoquest.com', 'QA Testing', 'Tester de Software', 'Medellín');

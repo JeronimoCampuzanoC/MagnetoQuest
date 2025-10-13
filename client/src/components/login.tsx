@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Container,
@@ -21,7 +21,22 @@ const Login: React.FC = () => {
     const [username, setUsername] = useState<string>("");
     const [error, setError] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [availableUsers, setAvailableUsers] = useState<string[]>([]);
     const navigate = useNavigate();
+
+    // Load available users on component mount
+    useEffect(() => {
+        const loadUsers = async () => {
+            try {
+                const users = await AuthService.getValidUsernames();
+                setAvailableUsers(users);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                setAvailableUsers(['Error loading users']);
+            }
+        };
+        loadUsers();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,8 +60,7 @@ const Login: React.FC = () => {
                 // Navigate to home
                 navigate("/home");
             } else {
-                const validUsernames = AuthService.getValidUsernames();
-                setError("Usuario no encontrado. Usuarios válidos: " + validUsernames.join(", "));
+                setError("Usuario no encontrado. Usuarios disponibles: " + availableUsers.join(", "));
             }
         } catch (error) {
             setError("Error al conectar con el servidor. Intenta de nuevo.");
@@ -118,7 +132,7 @@ const Login: React.FC = () => {
 
                             <div className={styles.testUsers}>
                                 <small>
-                                    {AuthService.getValidUsernames().join(" • ")}
+                                    {availableUsers.join(" • ")}
                                 </small>
                             </div>
                         </CardBody>

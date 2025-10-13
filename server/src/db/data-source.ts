@@ -15,7 +15,7 @@ import { NotificationLog } from '../entities/NotificationLog';
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5433), // ← CORREGIDO: puerto 5433 para test
+  port: Number(process.env.DB_PORT ?? 5432), // ← CORREGIDO: puerto 5432 para postgres
   username: process.env.DB_USER ?? 'poc_user',
   password: process.env.DB_PASS ?? 'poc_pass',
   database: process.env.DB_NAME ?? 'poc_db',

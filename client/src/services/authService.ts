@@ -1,42 +1,62 @@
-// Simulated user database
-const USERS_DATABASE = [
-  { id: 1, username: "admin", name: "Administrador" },
-  { id: 2, username: "user1", name: "Usuario Uno" },
-  { id: 3, username: "user2", name: "Usuario Dos" },
-  { id: 4, username: "testuser", name: "Usuario de Prueba" },
-  { id: 5, username: "demo", name: "Usuario Demo" },
-  { id: 6, username: "guest", name: "Invitado" },
-];
-
 export interface User {
-  id: number;
+  id: string;
   username: string;
   name: string;
+  email?: string | null;
+  sector?: string | null;
+  target_position?: string | null;
+  city?: string | null;
 }
 
 export class AuthService {
   /**
-   * Simulates an API call to validate a username
+   * Validates a username against the real database
    * @param username The username to validate
    * @returns Promise that resolves to user data if valid, null if invalid
    */
   static async validateUser(username: string): Promise<User | null> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
-    
-    const user = USERS_DATABASE.find(u => 
-      u.username.toLowerCase() === username.toLowerCase()
-    );
-    
-    return user || null;
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: username.trim() }),
+      });
+
+      if (response.status === 404) {
+        return null; // User not found
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.user || null;
+    } catch (error) {
+      console.error('Authentication error:', error);
+      throw error;
+    }
   }
 
   /**
-   * Get list of valid usernames for testing purposes
-   * @returns Array of valid usernames
+   * Get list of all users from database for testing purposes
+   * @returns Array of usernames
    */
-  static getValidUsernames(): string[] {
-    return USERS_DATABASE.map(u => u.username);
+  static async getValidUsernames(): Promise<string[]> {
+    try {
+      const response = await fetch('/api/appusers');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const users = await response.json();
+      return users.map((user: any) => user.name);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      return ['Error loading users'];
+    }
   }
 
   /**
@@ -44,10 +64,15 @@ export class AuthService {
    * @returns User data if logged in, null otherwise
    */
   static getCurrentUser(): User | null {
-    const username = localStorage.getItem("username");
-    if (!username) return null;
+    const userInfo = localStorage.getItem("userInfo");
+    if (!userInfo) return null;
     
-    return USERS_DATABASE.find(u => u.username === username) || null;
+    try {
+      return JSON.parse(userInfo);
+    } catch (error) {
+      console.error('Error parsing user info:', error);
+      return null;
+    }
   }
 
   /**
