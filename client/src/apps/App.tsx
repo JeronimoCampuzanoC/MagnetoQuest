@@ -211,7 +211,7 @@ const App: React.FC = () => {
         <Route
           path="/"
           element={
-            isLoggedIn ? <Navigate to="/home" replace /> : <Login />
+            isLoggedIn ? <Navigate to="/misiones" replace /> : <Login />
           }
         />
         <Route
