@@ -33,10 +33,25 @@ export default function TriviaApp() {
     'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño, optimización de bases de datos, APIs RESTful, microservicios, y mejores prácticas de desarrollo.'
   );
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [totalQuestions] = useState(3);
+  const [totalQuestions] = useState(1);
 
   // Estados para llevar el tiempo
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('triviaConfig');
+
+    if (savedConfig) {
+      const config = JSON.parse(savedConfig);
+      // config tendrá: { userId, title, description }
+      setUserId(config.userId);
+      setTopicName(config.title);
+      setTopicDescription(config.description);
+      // También podrías usar config.userId si lo necesitas
+      console.log(config.userId)
+    }
+  }, []);
 
 
   useEffect(() => {
@@ -108,6 +123,7 @@ export default function TriviaApp() {
         console.log('🏁 [TriviaApp] Trivia completada, obteniendo resultados...');
         const finalResults = await TriviaService.getResults(sessionId);
         setResults(finalResults);
+        await saveTriviaAttempt(finalResults);
         setScreen('results'); // Cambia a la pantalla de resultados
         console.log('✅ [TriviaApp] Resultados obtenidos');
       } else {
@@ -177,7 +193,46 @@ export default function TriviaApp() {
     setIsPreloading(false);
     setElapsedTime(0);
   };
+  const saveTriviaAttempt = async (results: TriviaResults) => {
+    try {
+      const savedConfig = localStorage.getItem('triviaConfig');
+      const config = savedConfig ? JSON.parse(savedConfig) : null;
+      const currentUserId = config?.userId;
 
+      if (!currentUserId) {
+        console.error('No hay userId para guardar el intento');
+        return;
+      }
+
+      console.log('Guardando intento para usuario:', currentUserId);
+
+      const attempt = {
+        user_id: currentUserId,
+        category: topicName,
+        difficulty: difficulty,
+        score: results.totalScore,
+        total_time: results.duration,
+        precision_score: Math.round(results.summary.averageAccuracy)
+      };
+
+      const response = await fetch('http://localhost:4000/api/trivia-attempts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(attempt),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al guardar el intento de trivia');
+      }
+
+      console.log('✅ Intento de trivia guardado correctamente');
+    } catch (error) {
+      console.error('Error al guardar el intento:', error);
+      setError('Error al guardar los resultados');
+    }
+  };
   // Calcular porcentaje de progreso
   const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
 
@@ -269,7 +324,7 @@ export default function TriviaApp() {
 
           <div>
             <div className={styles.header}>
-               <img src="../static/magnetoQuestTrivia.png" alt="MagnetoQuest Trivia" className={styles.logo} />
+              <img src="../static/magnetoQuestTrivia.png" alt="MagnetoQuest Trivia" className={styles.logo} />
               <p className={styles.subtitle}>{topicName}</p>
 
               {/*  Timer */}
@@ -341,7 +396,7 @@ export default function TriviaApp() {
                 )}
                 {nextQuestionPreloaded && !isPreloading && (
                   <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#10b981' }}>
-                     Siguiente pregunta lista
+                    Siguiente pregunta lista
                   </div>
                 )}
               </div>
@@ -435,7 +490,7 @@ export default function TriviaApp() {
                 <div className={styles.statLabel}>Precisión promedio</div>
               </div>
               <div className={styles.statCard}>
-                <div className={styles.statValue}>{results.duration}s</div>
+                <div className={styles.statValue}>{formatTime(results.duration)}s</div>
                 <div className={styles.statLabel}>Tiempo total</div>
               </div>
             </div>

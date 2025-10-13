@@ -13,7 +13,6 @@ import { BadgeProgress } from './entities/BadgeProgress';
 import { NotificationLog } from './entities/NotificationLog';
 import { Resume } from './entities/Resume';
 import { TriviaAttempt } from './entities/TriviaAttempt';
-import { TriviaQuestion } from './entities/TriviaQuestion';
 import { UserMissionProgress } from './entities/UserMissionProgress';
 import { UserProgress } from './entities/UserProgress';
 import { NotificationService } from './services/NotificationService';
@@ -563,6 +562,44 @@ app.delete('/api/certificates/:id', async (req, res) => {
 
 // 👇 NUEVA RUTA PROXY PARA TRIVIA
 app.use('/api/trivia', triviaProxyRoutes);
+
+// GUARDAR INTENTO DE TRIVIA
+app.post('/api/trivia-attempts', async (req, res) => {
+  try {
+    const { user_id, category, difficulty, score, total_time, precision_score } = req.body;
+
+    // Validar campos requeridos
+    if (!user_id || !category || !difficulty || score == null || total_time == null || precision_score == null) {
+      return res.status(400).json({ error: 'Faltan campos requeridos' });
+    }
+
+    // Verificar que el usuario existe
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const userExists = await userRepo.findOne({ where: { id_app_user: user_id } });
+
+    if (!userExists) {
+      console.error(`Usuario con ID ${user_id} no encontrado`);
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const repo = AppDataSource.getRepository(TriviaAttempt);
+    const attempt = repo.create({
+      user_id,
+      category,
+      difficulty,
+      score,
+      total_time,
+      precision_score
+    });
+
+    await repo.save(attempt);
+    res.status(201).json(attempt);
+  } catch (e) {
+    console.error('Error al guardar intento de trivia:', e);
+    res.status(500).json({ error: 'Error al guardar en la base de datos' });
+  }
+});
+
 
 
 const PORT = process.env.PORT || 4000;

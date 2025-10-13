@@ -98,23 +98,17 @@ CREATE TABLE user_mission_progress (
     )
 );
 
-CREATE TABLE trivia_question (
-    question_id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
-    category TEXT,
-    difficulty difficulty NOT NULL DEFAULT 'easy',
-    question TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+
 
 CREATE TABLE trivia_attempt (
     attempt_id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
     user_id UUID NOT NULL REFERENCES app_user (id_app_user) ON DELETE CASCADE,
-    question_id UUID NOT NULL REFERENCES trivia_question (question_id) ON DELETE CASCADE,
-    puntaje INT NOT NULL CHECK (puntaje >= 0),
-    attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, question_id)
+    category TEXT,
+    difficulty difficulty NOT NULL DEFAULT 'medium',
+    score INT NOT NULL CHECK (score >= 0),
+    total_time INT NOT NULL CHECK (total_time>=0),
+    precision_score INT NOT NULL CHECK (precision_score>=0),
+    attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -281,44 +275,19 @@ INSERT INTO user_mission_progress (user_id, mission_id, status, progress, starts
  (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 9), 'not_started', 0,  NOW() - INTERVAL '1 days',  NOW() + INTERVAL '12 hours',  NULL);
 
 -- =========================
--- SEED: TRIVIA_QUESTION (10)
--- =========================
-INSERT INTO trivia_question (category, difficulty, question, answer, is_active) VALUES
-('math',     'easy',   '2 + 2 = ?',           '4',        TRUE),
-('tech',     'easy',   'HTTP status OK?',     '200',      TRUE),
-('science',  'medium', 'H2O es…',             'Agua',     TRUE),
-('history',  'medium', 'Año llegada a la Luna','1969',    TRUE),
-('geography','hard',   'Capital de Australia','Canberra', TRUE),
-('math',     'hard',   'Derivada de x^2',     '2x',       TRUE),
-('tech',     'medium', 'Git: fusionar ramas', 'merge',    TRUE),
-('culture',  'easy',   'Color de bandera de Japón (círculo)', 'Rojo', TRUE),
-('science',  'easy',   'Planeta rojo',        'Marte',    TRUE),
-('history',  'hard',   'Inicio WWII',         '1939',     TRUE);
-
--- =========================
 -- SEED: TRIVIA_ATTEMPT (10)  (pares únicos user/question)
 -- =========================
-INSERT INTO trivia_attempt (user_id, question_id, puntaje, attempted_at) VALUES
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 0), 10, NOW() - INTERVAL '5 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 1),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 1), 10, NOW() - INTERVAL '4 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 2),  8, NOW() - INTERVAL '3 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 3),  7, NOW() - INTERVAL '3 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 4),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 4),  5, NOW() - INTERVAL '2 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 5),  9, NOW() - INTERVAL '2 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 6),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 6),  6, NOW() - INTERVAL '1 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 7), 10, NOW() - INTERVAL '1 days'),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 8), 10, NOW()),
-((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9),
- (SELECT question_id FROM trivia_question ORDER BY created_at LIMIT 1 OFFSET 9),  3, NOW());
+INSERT INTO trivia_attempt (user_id, category, difficulty, score, total_time, precision_score) VALUES
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0), 'Programación Backend', 'medium', 85, 300, 90),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 1), 'Desarrollo Web', 'easy', 95, 240, 95),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2), 'Bases de Datos', 'hard', 75, 420, 80),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3), 'Arquitectura Software', 'medium', 88, 360, 85),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 4), 'APIs RESTful', 'easy', 100, 180, 100),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5), 'DevOps', 'hard', 70, 480, 75),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 6), 'Testing', 'medium', 92, 270, 95),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7), 'Microservicios', 'hard', 82, 390, 85),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8), 'Seguridad Web', 'medium', 78, 330, 80),
+((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9), 'Cloud Computing', 'easy', 98, 210, 100);
 
 -- =========================
 -- SEED: NOTIFICATION_LOG (10)

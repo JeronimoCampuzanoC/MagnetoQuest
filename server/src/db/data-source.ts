@@ -8,7 +8,6 @@ import { Badge } from '../entities/Badge';
 import { BadgeProgress } from '../entities/BadgeProgress';
 import { Mission } from '../entities/Mission';
 import { UserMissionProgress } from '../entities/UserMissionProgress';
-import { TriviaQuestion } from '../entities/TriviaQuestion';
 import { TriviaAttempt } from '../entities/TriviaAttempt';
 import { NotificationLog } from '../entities/NotificationLog';
 import { UserProgress } from '../entities/UserProgress';
@@ -27,7 +26,7 @@ export const AppDataSource = new DataSource({
     AppUser, Resume, Project, Certificate,
     Badge, BadgeProgress,
     Mission, UserMissionProgress,
-    TriviaQuestion, TriviaAttempt,
+    TriviaAttempt,
     NotificationLog, UserProgress,
   ],
 });

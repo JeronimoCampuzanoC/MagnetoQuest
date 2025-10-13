@@ -23,7 +23,7 @@ const Notificaciones: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const toggle = () => setOpen(v => !v);
 
   // Obtener el userId del localStorage (ajustar según tu implementación de auth)
@@ -48,7 +48,7 @@ const Notificaciones: React.FC = () => {
 
     try {
       const response = await fetch(`http://localhost:4000/api/users/${userId}/notifications`);
-      
+
       if (!response.ok) {
         throw new Error('Error al cargar notificaciones');
       }
@@ -74,16 +74,16 @@ const Notificaciones: React.FC = () => {
     const now = new Date();
     const notificationTime = new Date(timestamp);
     const diffInMinutes = Math.floor((now.getTime() - notificationTime.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return 'Ahora mismo';
     if (diffInMinutes < 60) return `Hace ${diffInMinutes} min`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `Hace ${diffInHours}h`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `Hace ${diffInDays}d`;
-    
+
     return notificationTime.toLocaleDateString('es-ES');
   };
 
@@ -91,7 +91,7 @@ const Notificaciones: React.FC = () => {
     const now = new Date();
     const notificationTime = new Date(timestamp);
     const diffInHours = Math.floor((now.getTime() - notificationTime.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 24) return 'Hoy';
     if (diffInHours < 48) return 'Ayer';
     if (diffInHours < 168) return 'Esta semana'; // 7 días
@@ -101,7 +101,7 @@ const Notificaciones: React.FC = () => {
 
   const groupNotificationsByTime = (notifications: Notification[]) => {
     const groups: { [key: string]: Notification[] } = {};
-    
+
     notifications.forEach(notification => {
       const section = getTimeSection(notification.timestamp);
       if (!groups[section]) {
@@ -113,7 +113,7 @@ const Notificaciones: React.FC = () => {
     // Ordenar las secciones
     const sectionOrder = ['Hoy', 'Ayer', 'Esta semana', 'Este mes', 'Anteriores'];
     const orderedGroups: { section: string; notifications: Notification[] }[] = [];
-    
+
     sectionOrder.forEach(section => {
       if (groups[section] && groups[section].length > 0) {
         orderedGroups.push({ section, notifications: groups[section] });
@@ -165,7 +165,7 @@ const Notificaciones: React.FC = () => {
             )}
           </div>
         </OffcanvasHeader>
-        
+
         <OffcanvasBody className={styles.body}>
           {loading && (
             <div className={styles.loadingContainer}>
@@ -197,8 +197,8 @@ const Notificaciones: React.FC = () => {
                     {section}
                   </div>
                   {groupNotifications.map((notification) => (
-                    <div 
-                      key={notification.id} 
+                    <div
+                      key={notification.id}
                       className={styles.notificationItem}
                       style={{ borderLeftColor: getNotificationColor(notification.type) }}
                     >
@@ -213,11 +213,11 @@ const Notificaciones: React.FC = () => {
                           {formatTimeAgo(notification.timestamp)}
                         </small>
                       </div>
-                      
+
                       <p className={styles.notificationMessage}>
                         {notification.message}
                       </p>
-                      
+
                       <div className={styles.notificationFooter}>
                         <span className={styles.channelBadge}>
                           {notification.channel === 'email' ? '📧' : '📱'} {notification.channel}
@@ -228,7 +228,7 @@ const Notificaciones: React.FC = () => {
                 </div>
               ))}
 
-              <button 
+              <button
                 className={styles.refreshButton}
                 onClick={fetchNotifications}
                 disabled={loading}

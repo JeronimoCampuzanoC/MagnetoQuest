@@ -1,9 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index, Unique } from 'typeorm';
 import { AppUser } from './AppUser';
-import { TriviaQuestion } from './TriviaQuestion';
+
 
 @Entity({ name: 'trivia_attempt' })
-@Unique('uq_user_question', ['user_id', 'question_id'])
 export class TriviaAttempt {
   @PrimaryGeneratedColumn('uuid', { name: 'attempt_id' })
   attempt_id!: string;
@@ -16,16 +15,26 @@ export class TriviaAttempt {
   @JoinColumn({ name: 'user_id', referencedColumnName: 'id_app_user' })
   user!: AppUser;
 
-  @Index()
-  @Column({ name: 'question_id', type: 'uuid' })
-  question_id!: string;
+  @Column({ name: 'category', type: 'text', nullable: true })
+  category!: string | null;
 
-  @ManyToOne(() => TriviaQuestion, (q) => q.attempts, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'question_id', referencedColumnName: 'question_id' })
-  question!: TriviaQuestion;
+  @Column({
+    name: 'difficulty',
+    type: 'enum',
+    enumName: 'difficulty',
+    enum: ['easy', 'medium', 'hard'],
+    default: 'medium',
+  })
+  difficulty!: 'easy' | 'medium' | 'hard';
 
-  @Column({ name: 'puntaje', type: 'int' })
-  puntaje!: number;
+  @Column({ name: 'score', type: 'int' })
+  score!: number;
+
+  @Column({ name: 'total_time', type: 'int' })
+  total_time!: number;
+
+  @Column({ name: 'precision_score', type: 'int' })
+  precision_score!: number;
 
   @Column({ name: 'attempted_at', type: 'timestamptz', default: () => 'now()' })
   attempted_at!: Date;
