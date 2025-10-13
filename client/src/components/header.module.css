@@ -41,3 +41,18 @@
 .avatarBtn:hover {
   background: #e9ebf6;
 }
+
+.userDropdown {
+  transform: translateX(-150px) !important;
+  min-width: 180px;
+}
+
+.userDropdown .dropdown-item {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.userDropdown .dropdown-header {
+  font-weight: 600;
+  color: #2b2f7f;
+}

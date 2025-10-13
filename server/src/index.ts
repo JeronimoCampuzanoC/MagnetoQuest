@@ -160,6 +160,45 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
+// 👇 AUTHENTICATION ENDPOINT
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username } = req.body ?? {};
+    
+    if (typeof username !== 'string' || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const repo = AppDataSource.getRepository(AppUser);
+    
+    // Search for user by name (case insensitive)
+    const user = await repo.findOne({
+      where: { name: username.trim() }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Return user data (excluding sensitive information if any)
+    const userData = {
+      id: user.id_app_user,
+      username: user.name,
+      name: user.name,
+      email: user.email,
+      sector: user.sector,
+      target_position: user.target_position,
+      city: user.city
+    };
+
+    res.json({ user: userData });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // 👇 NUEVA RUTA PROXY PARA TRIVIA
 app.use('/api/trivia', triviaProxyRoutes);
 
