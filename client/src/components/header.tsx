@@ -77,7 +77,7 @@ const Header: React.FC = () => {
                                     <circle cx="12" cy="7" r="4" />
                                 </svg>
                             </DropdownToggle>
-                            <DropdownMenu end>
+                            <DropdownMenu end className={styles.userDropdown}>
                                 <DropdownItem header>
                                     Hola, {username}
                                 </DropdownItem>

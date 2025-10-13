@@ -58,19 +58,25 @@ const Login: React.FC = () => {
     return (
         <Container className={styles.loginContainer}>
             <Row className="justify-content-center">
-                <Col md="6" lg="4">
+                <Col md="50" lg="80" xl="200">
                     <Card className={styles.loginCard}>
                         <CardBody>
-                            <CardTitle tag="h3" className="text-center mb-4">
-                                MagnetoQuest
-                            </CardTitle>
-                            <CardTitle tag="h5" className="text-center mb-4 text-muted">
-                                Iniciar Sesión
-                            </CardTitle>
+                            <div className={styles.logoContainer}>
+                                <img
+                                    src="/static/magnetoQuestTrivia.png"
+                                    alt="MagnetoQuest"
+                                    className={styles.logoImage}
+                                />
+                                <CardTitle tag="h5" className="text-center text-muted">
+                                    Iniciar Sesión
+                                </CardTitle>
+                            </div>
 
                             <Form onSubmit={handleSubmit}>
-                                <FormGroup>
-                                    <Label for="username">Nombre de Usuario</Label>
+                                <FormGroup className="mb-3">
+                                    <Label for="username" className={styles.formLabel}>
+                                        Nombre de Usuario
+                                    </Label>
                                     <Input
                                         type="text"
                                         name="username"
@@ -79,28 +85,40 @@ const Login: React.FC = () => {
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         disabled={isLoading}
+                                        className="form-control"
                                     />
                                 </FormGroup>
 
                                 {error && (
-                                    <Alert color="danger" className="mb-3">
+                                    <Alert color="danger">
                                         {error}
                                     </Alert>
                                 )}
 
                                 <Button
                                     color="primary"
-                                    block
                                     type="submit"
                                     disabled={isLoading || !username.trim()}
+                                    className="w-100"
                                 >
-                                    {isLoading ? "Verificando..." : "Iniciar Sesión"}
+                                    {isLoading ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" />
+                                            Verificando...
+                                        </>
+                                    ) : (
+                                        "Iniciar Sesión"
+                                    )}
                                 </Button>
                             </Form>
 
-                            <div className="mt-3 text-center">
-                                <small className="text-muted">
-                                    Usuarios de prueba: {AuthService.getValidUsernames().join(", ")}
+                            <div className={styles.divider}>
+                                Usuarios de prueba
+                            </div>
+
+                            <div className={styles.testUsers}>
+                                <small>
+                                    {AuthService.getValidUsernames().join(" • ")}
                                 </small>
                             </div>
                         </CardBody>
