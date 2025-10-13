@@ -29,7 +29,7 @@ export class TriviaAgent {
     this.sessionId = this.generateSessionId();
     this.startTime = new Date();
     this.askedQuestions = [];
-    
+
     console.log(`\n🎯 [TriviaAgent] Nueva sesión creada: ${this.sessionId}`);
     console.log(`📚 Tema: ${topic.name}`);
     console.log(`🔢 Total de preguntas: ${totalQuestions}\n`);
@@ -56,7 +56,7 @@ export class TriviaAgent {
 
     try {
       const startTime = Date.now();
-      
+
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4',
         messages: [
@@ -77,9 +77,9 @@ export class TriviaAgent {
       const elapsed = Date.now() - startTime;
       const content = response.choices[0].message.content || '';
       const question = this.parseQuestionResponse(content, difficulty);
-      
+
       this.askedQuestions.push(question.question);
-      
+
       console.log(`✅ [${this.sessionId}] Pregunta generada en ${elapsed}ms`);
       console.log(`❓ Pregunta: ${question.question}`);
       console.log(`💡 Respuesta esperada: ${question.expectedAnswer.substring(0, 100)}...`);
@@ -87,7 +87,7 @@ export class TriviaAgent {
         console.log(`🔑 Pista: ${question.hint}`);
       }
       console.log('');
-      
+
       return question;
     } catch (error) {
       console.error(`❌ [${this.sessionId}] Error generando pregunta:`, error);
@@ -105,7 +105,7 @@ export class TriviaAgent {
   ): Promise<EvaluationResult> {
     console.log(`\n🔍 [${this.sessionId}] Evaluando respuesta de pregunta ${this.currentQuestion}...`);
     console.log(`📝 Respuesta del usuario: ${userAnswer.substring(0, 150)}...`);
-    
+
     const prompt = `
 Evalúa la siguiente respuesta a una pregunta de trivia:
 
@@ -113,42 +113,51 @@ PREGUNTA: ${question.question}
 RESPUESTA ESPERADA: ${expectedAnswer}
 RESPUESTA DEL USUARIO: ${userAnswer}
 
-Por favor evalúa la respuesta considerando:
-1. Exactitud conceptual
-2. Completitud de la respuesta
-3. Uso correcto de terminología
-4. Profundidad de comprensión
+Por favor evalúa la respuesta considerando (en orden de importancia):
+1. ¿Comprende la idea principal del concepto? (peso: 50%)
+2. ¿Puede explicarlo razonablemente con sus propias palabras? (peso: 30%)
+3. ¿Menciona detalles o conceptos relacionados? (peso: 20%)
+
+NOTA: La terminología técnica exacta NO es obligatoria si la comprensión es evidente.
 
 Devuelve tu evaluación en el siguiente formato JSON:
 {
-  "isCorrect": true o false,
+  "isCorrect": true/false,
   "score": número del 0-10,
   "accuracy": porcentaje del 0-100,
-  "feedback": "Feedback detallado y constructivo"
+  "feedback": "Feedback constructivo y alentador"
 }
 
-IMPORTANTE: Sé justo pero exigente. Una respuesta parcialmente correcta debe recibir puntos parciales.
+
+CRITERIOS DE PUNTUACIÓN (sé generoso):
+- 9-10: Excelente comprensión con detalles adicionales
+- 7-8: Buena comprensión del concepto principal
+- 5-6: Comprensión básica o parcial
+- 3-4: Comprensión muy limitada pero con algo correcto
+- 0-2: Respuesta completamente incorrecta o sin relación
+
+IMPORTANTE: Si el usuario demuestra que entiende el concepto principal, aunque sea de forma simple, debe recibir AL MENOS 6/10. Sé motivador y reconoce el esfuerzo.
 `;
 
     try {
       const startTime = Date.now();
-      
-const response = await this.openai.chat.completions.create({
-  model: 'gpt-4',
-  messages: [
-    {
-      role: 'system',
-      content: 'Eres un evaluador experto y justo. Proporcionas feedback constructivo y detallado. SIEMPRE respondes ÚNICAMENTE con un objeto JSON válido, sin markdown, sin explicaciones. Tu respuesta DEBE empezar con { y terminar con }.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
-  ],
-  temperature: 0.3,
-  max_tokens: 300
- 
-});
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un evaluador experto y justo. Proporcionas feedback constructivo y detallado. SIEMPRE respondes ÚNICAMENTE con un objeto JSON válido, sin markdown, sin explicaciones. Tu respuesta DEBE empezar con { y terminar con }.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 300
+
+      });
 
       const elapsed = Date.now() - startTime;
       const content = response.choices[0].message.content || '';
@@ -200,44 +209,135 @@ const response = await this.openai.chat.completions.create({
   }
 
   /**
+   * Genera un feedback personalizado completo usando OpenAI
+   */
+  private async generatePersonalizedFeedback(
+    correctAnswers: number,
+    incorrectAnswers: number,
+    averageAccuracy: number,
+    answers: AnswerRecord[]
+  ): Promise<string> {
+    console.log(`\n💬 [${this.sessionId}] Generando feedback personalizado...`);
+
+    // Construir resumen detallado de cada respuesta
+    const answersResume = answers.map((ans, index) => `
+Pregunta ${index + 1}: ${ans.question}
+Respuesta del usuario: ${ans.userAnswer.substring(0, 200)}${ans.userAnswer.length > 200 ? '...' : ''}
+Evaluación: ${ans.isCorrect ? ' Correcta' : '❌ Incorrecta'} - Score: ${ans.score}/10 (${ans.accuracy}% precisión)
+Feedback recibido: ${ans.feedback}
+    `).join('\n---\n');
+
+    const totalScore = answers.reduce((sum, ans) => sum + ans.score, 0);
+    const maxPossibleScore = this.totalQuestions * 10;
+
+const prompt = `
+Eres un tutor experto, cercano y motivador. Has finalizado una sesión de trivia sobre "${this.topic.name}" con un estudiante.
+
+ RESULTADOS GENERALES:
+- Total de preguntas: ${this.totalQuestions}
+- Respuestas correctas: ${correctAnswers} 
+- Respuestas incorrectas: ${incorrectAnswers} 
+- Precisión promedio: ${averageAccuracy}%
+- Puntuación total: ${totalScore}/${maxPossibleScore} puntos (${Math.round((totalScore / maxPossibleScore) * 100)}%)
+
+ DETALLE COMPLETO DE CADA RESPUESTA:
+${answersResume}
+
+--- INSTRUCCIONES ---
+
+1) Detección de dominio:
+- Deduce el dominio principal usando "${this.topic.name}" + los conceptos y títulos visibles en ${answersResume} .
+- Si hay ambigüedad, elige el dominio con más señales en ${answersResume}. No inventes datos.
+
+2) Redacción del feedback (130–170 palabras), en prosa natural (sin viñetas):
+- **Saludo amigable** breve.
+- **Fortalezas —** Nombra explícitamente los temas/preguntas acertadas y explica qué comprensión demuestran, citando conceptos reales detectados.
+- **Cómo mejorar —** Señala los temas/preguntas con dificultad y propone 2 acciones concretas **adaptadas al dominio detectado** (p. ej., “practica role-plays de escucha activa”, “usa EXPLAIN para optimizar consultas”, “traza una línea de tiempo de los hechos clave”). Evita vaguedades.
+- **Despedida motivadora** breve y realista.
+
+---
+
+ESTILO:
+- En segunda persona (tú, te, tu).  
+- Tono amigable, humano y realista.  
+- Centrado en lo académico, no en lo emocional.  
+- Sin listas ni numeraciones en el texto final.  
+- Debe leerse como un comentario fluido de un mentor que valora tanto los aciertos como las oportunidades de mejora.
+
+IMPORTANTE: Aunque el estudiante haya tenido bajo puntaje, el feedback debe ser constructivo y motivador, nunca desalentador.
+`;
+
+
+    try {
+      const startTime = Date.now();
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un tutor experto, cercano y motivador. Escribes feedback personalizado que inspira a los estudiantes a seguir aprendiendo. Tu estilo es conversacional, específico y siempre positivo.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,  // Más creativo para el feedback
+        max_tokens: 800    // Suficiente para 200-300 palabras
+      });
+
+      const elapsed = Date.now() - startTime;
+      const feedback = response.choices[0].message.content || 'No se pudo generar el feedback personalizado.';
+
+      console.log(`✅ [${this.sessionId}] Feedback personalizado generado en ${elapsed}ms`);
+      console.log(`📝 Longitud del feedback: ${feedback.length} caracteres`);
+      console.log(`📄 Preview: ${feedback.substring(0, 150)}...\n`);
+
+      return feedback;
+
+    } catch (error) {
+      console.error(`❌ [${this.sessionId}] Error generando feedback personalizado:`, error);
+
+      // Fallback: feedback genérico si falla la IA
+      const fallbackFeedback = `¡Gracias por completar esta trivia sobre ${this.topic.name}! Has obtenido ${correctAnswers} respuestas correctas de ${this.totalQuestions} preguntas, logrando una precisión del ${averageAccuracy}%. ${correctAnswers > incorrectAnswers ? '¡Excelente trabajo! Demuestras un buen dominio del tema.' : 'Has dado un buen primer paso. Con práctica y dedicación, seguro mejorarás tu comprensión del tema.'} Revisa las preguntas donde tuviste dificultades y tómate el tiempo para entender los conceptos. Cada intento es una oportunidad de aprendizaje. ¡Sigue así y no te rindas!`;
+
+      return fallbackFeedback;
+    }
+  }
+
+  /**
    * Obtiene los resultados finales (JSON a devolver)
    */
-  getResults(): TriviaResults {
+  async getResults(): Promise<TriviaResults> {
     const endTime = new Date();
     const duration = Math.floor((endTime.getTime() - this.startTime.getTime()) / 1000);
-    
+
     const totalScore = this.answers.reduce((sum, ans) => sum + ans.score, 0);
     const maxScore = this.totalQuestions * 10;
     const percentage = Math.round((totalScore / maxScore) * 100);
-    
+
     const correctAnswers = this.answers.filter(ans => ans.isCorrect).length;
     const incorrectAnswers = this.answers.length - correctAnswers;
-    
+
     const averageAccuracy = this.answers.length > 0
       ? Math.round(this.answers.reduce((sum, ans) => sum + ans.accuracy, 0) / this.answers.length)
       : 0;
 
-    // Identificar áreas fuertes y débiles
-    const strongAreas = this.answers
-      .filter(ans => ans.score >= 8)
-      .map(ans => this.extractKeywords(ans.question))
-      .flat()
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .slice(0, 3);
-
-    const weakAreas = this.answers
-      .filter(ans => ans.score < 5)
-      .map(ans => this.extractKeywords(ans.question))
-      .flat()
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .slice(0, 3);
-
-    console.log(`\n📊 [${this.sessionId}] Resultados finales generados:`);
+    console.log(`\n📊 [${this.sessionId}] Generando resultados finales...`);
     console.log(`⭐ Score total: ${totalScore}/${maxScore} (${percentage}%)`);
     console.log(`✅ Correctas: ${correctAnswers} | ❌ Incorrectas: ${incorrectAnswers}`);
     console.log(`📈 Promedio de accuracy: ${averageAccuracy}%`);
-    console.log(`💪 Áreas fuertes: ${strongAreas.join(', ') || 'Ninguna'}`);
-    console.log(`📚 Áreas débiles: ${weakAreas.join(', ') || 'Ninguna'}\n`);
+
+    // Generar feedback personalizado con IA
+    const personalizedFeedback = await this.generatePersonalizedFeedback(
+      correctAnswers,
+      incorrectAnswers,
+      averageAccuracy,
+      this.answers
+    );
+
+    console.log(`✅ [${this.sessionId}] Resultados completos generados\n`);
 
     return {
       sessionId: this.sessionId,
@@ -254,8 +354,7 @@ const response = await this.openai.chat.completions.create({
         correctAnswers,
         incorrectAnswers,
         averageAccuracy,
-        strongAreas,
-        weakAreas
+        personalizedFeedback  // ← NUEVO: Feedback generado por IA
       }
     };
   }
@@ -330,7 +429,7 @@ NO incluyas texto adicional, explicaciones, ni formato markdown. SOLO el objeto 
     try {
       // Intentar parsear directamente como JSON
       let parsed;
-      
+
       // Buscar JSON en el contenido
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -374,7 +473,7 @@ NO incluyas texto adicional, explicaciones, ni formato markdown. SOLO el objeto 
     try {
       // Intentar parsear como JSON
       let parsed;
-      
+
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[0]);
@@ -404,14 +503,13 @@ NO incluyas texto adicional, explicaciones, ni formato markdown. SOLO el objeto 
     };
   }
 
-  private extractKeywords(text: string): string[] {
-    // Extraer palabras clave simples
-    const words = text
-      .toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter(word => word.length > 4);
-    
-    return words.slice(0, 3);
+  
+
+    /**
+   * Obtiene el sessionId de la trivia
+   */
+  getSessionId(): string {
+    return this.sessionId;
   }
+
 }

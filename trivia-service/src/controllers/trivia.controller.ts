@@ -60,7 +60,7 @@ export const startTrivia = async (req: Request, res: Response): Promise<void> =>
     // Generar primera pregunta
     const firstQuestion = await agent.generateQuestion();
 
-    const sessionId = agent.getResults().sessionId;
+    const sessionId = agent.getSessionId();;
 
     // Guardar sesión en memoria
     activeSessions.set(sessionId, {
@@ -239,6 +239,10 @@ export const getNextQuestion = async (req: Request, res: Response): Promise<void
  * GET /api/trivia/results/:sessionId
  * Obtiene los resultados finales de una trivia completada
  */
+/**
+ * GET /api/trivia/results/:sessionId
+ * Obtiene los resultados finales de una trivia completada
+ */
 export const getResults = async (req: Request, res: Response): Promise<void> => {
   try {
     const { sessionId } = req.params;
@@ -268,7 +272,7 @@ export const getResults = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Obtener resultados finales
-    const results = agent.getResults();
+    const results = await agent.getResults();  // ✅ Con await
 
     console.log(`✅ [Controller] Resultados obtenidos`);
     console.log(`🎯 Score final: ${results.totalScore}/${results.maxScore} (${results.percentage}%)`);

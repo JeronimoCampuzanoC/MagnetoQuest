@@ -60,8 +60,7 @@ export interface TriviaResults {
     correctAnswers: number;
     incorrectAnswers: number;
     averageAccuracy: number;
-    strongAreas: string[];
-    weakAreas: string[];
+    personalizedFeedback: string; 
   };
 }
 
