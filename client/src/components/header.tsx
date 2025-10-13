@@ -2,7 +2,6 @@ import styles from "./header.module.css";
 import React, { useState } from "react";
 import {
     Navbar,
-    NavbarBrand,
     Nav,
     NavItem,
     NavbarText,
@@ -10,13 +9,31 @@ import {
     Offcanvas,
     OffcanvasHeader,
     OffcanvasBody,
+    Dropdown,
+    DropdownToggle,
+    DropdownMenu,
+    DropdownItem,
 } from "reactstrap";
-import { NavLink as RRNavLink } from "react-router-dom";
+import { NavLink as RRNavLink, useNavigate } from "react-router-dom";
 import SearchBar from "./searchBar";
+import { AuthService } from "../services/authService";
 
 const Header: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const navigate = useNavigate();
+    const currentUser = AuthService.getCurrentUser();
+    const username = currentUser?.name || currentUser?.username || "Usuario";
+
     const toggle = () => setIsOpen(v => !v);
+    const toggleDropdown = () => setDropdownOpen(v => !v);
+
+    const handleLogout = () => {
+        AuthService.clearSession();
+        // Dispatch custom event to notify App component
+        window.dispatchEvent(new Event("logout"));
+        navigate("/");
+    };
 
     return (
         <>
@@ -36,30 +53,53 @@ const Header: React.FC = () => {
 
                 {/* Links*/}
                 <Nav className="me-auto d-none d-md-flex" navbar>
-                    <NavItem className={styles.lettersItem}><RRNavLink to="/" className="nav-link">Empleo</RRNavLink></NavItem>
-                    <NavItem className={styles.lettersItem}><RRNavLink to="/perfil" className="nav-link">Ver todo</RRNavLink></NavItem>
-                    <NavItem className={styles.lettersItem}><RRNavLink to="/misiones" className="nav-link">Sugeridos</RRNavLink></NavItem>
-                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">Guardados</RRNavLink></NavItem>
-                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">En proceso</RRNavLink></NavItem>
+                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">Inicio</RRNavLink></NavItem>
+                    <NavItem className={styles.lettersItem}><RRNavLink to="/perfil" className="nav-link">Perfil</RRNavLink></NavItem>
+                    <NavItem className={styles.lettersItem}><RRNavLink to="/misiones" className="nav-link">Misiones</RRNavLink></NavItem>
+                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">Trivia</RRNavLink></NavItem>
                 </Nav>
 
 
                 {/*Profile and CV*/}
                 <NavbarText>
                     <div className="d-flex align-items-center gap-2">
-                        <Button className={styles.cvPill} size="sm"> 
+                        <Button className={styles.cvPill} size="sm">
                             Hoja de vida
                         </Button>
 
-                        <button aria-label="Perfil"  // onClick={onAvatarClick} // onClick={onCvClick}
-                            className={styles.avatarBtn}>
-                            {/* SVG icono usuario */}
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M20 21a8 8 0 0 0-16 0" />
-                                <circle cx="12" cy="7" r="4" />
-                            </svg>
-                        </button>
+                        <Dropdown isOpen={dropdownOpen} toggle={toggleDropdown}>
+                            <DropdownToggle tag="button" aria-label="Perfil"
+                                className={styles.avatarBtn}>
+                                {/* SVG icono usuario */}
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M20 21a8 8 0 0 0-16 0" />
+                                    <circle cx="12" cy="7" r="4" />
+                                </svg>
+                            </DropdownToggle>
+                            <DropdownMenu end>
+                                <DropdownItem header>
+                                    Hola, {username}
+                                </DropdownItem>
+                                <DropdownItem divider />
+                                <DropdownItem onClick={() => navigate("/perfil")}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                                        <path d="M20 21a8 8 0 0 0-16 0" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                    Ver Perfil
+                                </DropdownItem>
+                                <DropdownItem divider />
+                                <DropdownItem onClick={handleLogout}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                        <polyline points="16,17 21,12 16,7" />
+                                        <line x1="21" y1="12" x2="9" y2="12" />
+                                    </svg>
+                                    Cerrar Sesión
+                                </DropdownItem>
+                            </DropdownMenu>
+                        </Dropdown>
                     </div>
                 </NavbarText>
             </Navbar>
@@ -70,11 +110,15 @@ const Header: React.FC = () => {
                 <OffcanvasBody>
                     <div className="d-md-none mb-3">
                         <Nav navbar vertical>
-                            <NavItem><RRNavLink to="/" className="nav-link" onClick={toggle}>Inicio</RRNavLink></NavItem>
+                            <NavItem><RRNavLink to="/home" className="nav-link" onClick={toggle}>Inicio</RRNavLink></NavItem>
                             <NavItem><RRNavLink to="/perfil" className="nav-link" onClick={toggle}>Perfil</RRNavLink></NavItem>
                             <NavItem><RRNavLink to="/misiones" className="nav-link" onClick={toggle}>Misiones</RRNavLink></NavItem>
                             <NavItem><RRNavLink to="/home" className="nav-link" onClick={toggle}>Trivia</RRNavLink></NavItem>
-                            <NavItem className="mt-2"><RRNavLink to="/inicioSesion" className="nav-link" onClick={toggle}>Iniciar Sesión</RRNavLink></NavItem>
+                            <NavItem className="mt-2">
+                                <Button color="danger" size="sm" onClick={() => { handleLogout(); toggle(); }} className="w-100">
+                                    Cerrar Sesión
+                                </Button>
+                            </NavItem>
                         </Nav>
                         <hr />
                     </div>

@@ -157,28 +157,88 @@
 
 // export default App;
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import styles from "./App.module.css";
 import Header from "../components/header";
 import TriviaApp from "./triviaApp";
 import Misiones from "./misiones";
 import Perfil from "./perfil";
-import Footer from "../components/footer";
 import Notifications from "../components/notifications";
+import Login from "../components/login";
+import ProtectedRoute from "../components/protectedRoute";
 
 const App: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check if user is logged in on app load
+    const username = localStorage.getItem("username");
+    setIsLoggedIn(username !== null);
+
+    // Listen for storage changes (in case user logs out in another tab)
+    const handleStorageChange = () => {
+      const username = localStorage.getItem("username");
+      setIsLoggedIn(username !== null);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Custom events for same-tab login/logout
+    const handleLogout = () => {
+      setIsLoggedIn(false);
+    };
+
+    const handleLogin = () => {
+      setIsLoggedIn(true);
+    };
+
+    window.addEventListener("logout", handleLogout);
+    window.addEventListener("login", handleLogin);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("logout", handleLogout);
+      window.removeEventListener("login", handleLogin);
+    };
+  }, []);
+
   return (
     <div className={styles.appContainer}>
-      <Header />
-      <Notifications />
+      {isLoggedIn && <Header />}
+      {isLoggedIn && <Notifications />}
       <Routes>
-        <Route path="/" element={<div className="p-3">Página de inicio</div>} />
-        <Route path="/home" element={<TriviaApp />} />
-        <Route path="/perfil" element={<Perfil/>} />
-        <Route path="/misiones" element={<Misiones/>} />
+        <Route
+          path="/"
+          element={
+            isLoggedIn ? <Navigate to="/home" replace /> : <Login />
+          }
+        />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <TriviaApp />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <Perfil />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/misiones"
+          element={
+            <ProtectedRoute>
+              <Misiones />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
-    
     </div>
   );
 };
