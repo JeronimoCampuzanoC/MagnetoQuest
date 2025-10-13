@@ -1,6 +1,6 @@
 // client/src/apps/triviaApp.tsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './triviaApp.module.css';
 import { TriviaService, TriviaTopicConfig, TriviaQuestion, EvaluationResult, TriviaProgress, TriviaResults } from '../services/triviaService';
 
@@ -33,7 +33,23 @@ export default function TriviaApp() {
     'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño, optimización de bases de datos, APIs RESTful, microservicios, y mejores prácticas de desarrollo.'
   );
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [totalQuestions, setTotalQuestions] = useState(5);
+  const [totalQuestions] = useState(3);
+
+  // Estados para llevar el tiempo
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+
+  useEffect(() => {
+    if (screen !== 'question') {
+      return; // Si no es 'question', no hacer nada
+    }
+    const intervalId = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [screen]);
 
   // Iniciar trivia
   const handleStartTrivia = async () => {
@@ -77,7 +93,7 @@ export default function TriviaApp() {
 
     try {
       console.log('📝 [TriviaApp] Enviando respuesta...');
-      
+
       // Evaluar respuesta, trae lo que se respondio y el progreso actualizado
       const response = await TriviaService.submitAnswer(sessionId, userAnswer);
 
@@ -98,7 +114,7 @@ export default function TriviaApp() {
         // 3️⃣ Si NO está completa, precargar siguiente pregunta en paralelo
         console.log('🔄 [TriviaApp] Precargando siguiente pregunta en background...');
         setIsPreloading(true);
-        
+
         // Ejecutar en paralelo (no bloqueante)
         TriviaService.getNextQuestion(sessionId)
           .then((nextResponse) => {
@@ -159,10 +175,23 @@ export default function TriviaApp() {
     setError(null);
     setNextQuestionPreloaded(null);
     setIsPreloading(false);
+    setElapsedTime(0);
   };
 
   // Calcular porcentaje de progreso
   const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
+
+  // Función para formatear tiempo en MM:SS
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+
+    // Agregar padding de 0 si es necesario
+    const minutesStr = String(minutes).padStart(2, '0');
+    const secondsStr = String(remainingSeconds).padStart(2, '0');
+
+    return `${minutesStr}:${secondsStr}`;
+  };
 
   return (
     <div className={styles.container}>
@@ -171,11 +200,11 @@ export default function TriviaApp() {
         {screen === 'start' && (
           <div className={styles.startScreen}>
             <div className={styles.header}>
-              <img src = "../static/magnetoQuestTrivia.png" alt="MagnetoQuest Trivia" className={styles.logo} />
-              {/* <h1 className={styles.title}>🎯 MagnetoQuest Trivia</h1> */}
-              <p className={styles.subtitle}>
+              <img src="../static/magnetoQuestTrivia.png" alt="MagnetoQuest Trivia" className={styles.logo} />
+              <h1 className={styles.title}>¡Comienza la Trivia!</h1>
+              {/* <p className={styles.subtitle}>
                 Pon a prueba tus conocimientos con nuestra IA
-              </p>
+              </p> */}
             </div>
 
             {error && (
@@ -194,16 +223,18 @@ export default function TriviaApp() {
                   value={topicName}
                   onChange={(e) => setTopicName(e.target.value)}
                   placeholder="Ej: Programación Backend"
+                  readOnly
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Descripción detallada</label>
+                <label className={styles.formLabel}>¿Qué tenemas se abordará?</label>
                 <textarea
                   className={styles.formTextarea}
                   value={topicDescription}
                   onChange={(e) => setTopicDescription(e.target.value)}
                   placeholder="Describe qué tipo de preguntas quieres..."
+                  readOnly
                 />
               </div>
 
@@ -226,7 +257,7 @@ export default function TriviaApp() {
                   onClick={handleStartTrivia}
                   disabled={loading}
                 >
-                  {loading ? 'Generando...' : '🚀 Comenzar Trivia'}
+                  {loading ? 'Generando...' : ' Comenzar Trivia'}
                 </button>
               </div>
             </div>
@@ -235,14 +266,23 @@ export default function TriviaApp() {
 
         {/* PANTALLA DE PREGUNTAS */}
         {screen === 'question' && currentQuestion && progress && (
+
           <div>
             <div className={styles.header}>
-              <h1 className={styles.title}>🎯 MagnetoQuest Trivia</h1>
+               <img src="../static/magnetoQuestTrivia.png" alt="MagnetoQuest Trivia" className={styles.logo} />
               <p className={styles.subtitle}>{topicName}</p>
+
+              {/*  Timer */}
+              <div className={styles.timerDisplay}>
+                <span className={styles.timerIcon}>⏱️</span>
+                <span className={styles.timerText}>{formatTime(elapsedTime)}</span>
+              </div>
             </div>
 
             {/* Barra de progreso */}
             <div className={styles.progressContainer}>
+
+
               <div className={styles.progressBar}>
                 <div
                   className={styles.progressFill}
@@ -251,7 +291,7 @@ export default function TriviaApp() {
               </div>
               <div className={styles.progressText}>
                 <span>
-                  Pregunta {progress.current} de {progress.total}
+                  Preguntas respondidas {progress.current} de {progress.total}
                 </span>
                 <span>
                   Score: {progress.score}/{progress.maxScore} ({progress.percentage}%)
@@ -269,9 +309,8 @@ export default function TriviaApp() {
             {/* Feedback de la respuesta anterior */}
             {evaluation && (
               <div
-                className={`${styles.feedbackCard} ${
-                  evaluation.isCorrect ? styles.feedbackCorrect : styles.feedbackIncorrect
-                }`}
+                className={`${styles.feedbackCard} ${evaluation.isCorrect ? styles.feedbackCorrect : styles.feedbackIncorrect
+                  }`}
               >
                 <div className={styles.feedbackHeader}>
                   <span className={styles.feedbackIcon}>
@@ -302,7 +341,7 @@ export default function TriviaApp() {
                 )}
                 {nextQuestionPreloaded && !isPreloading && (
                   <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#10b981' }}>
-                    ✅ Siguiente pregunta lista
+                     Siguiente pregunta lista
                   </div>
                 )}
               </div>
@@ -342,7 +381,7 @@ export default function TriviaApp() {
                     onClick={handleSubmitAnswer}
                     disabled={loading || !userAnswer.trim()}
                   >
-                    {loading ? 'Evaluando...' : '📤 Enviar Respuesta'}
+                    {loading ? 'Evaluando...' : ' Enviar Respuesta'}
                   </button>
                 </div>
               </>
@@ -356,11 +395,11 @@ export default function TriviaApp() {
                   onClick={handleNextQuestion}
                   disabled={!nextQuestionPreloaded || isPreloading}
                 >
-                  {isPreloading 
-                    ? '⏳ Cargando...' 
-                    : nextQuestionPreloaded 
-                      ? '➡️ Continuar (Instantáneo)' 
-                      : '⏳ Preparando...'}
+                  {isPreloading
+                    ? ' Cargando...'
+                    : nextQuestionPreloaded
+                      ? ' Continuar'
+                      : ' Preparando...'}
                 </button>
               </div>
             )}
@@ -371,7 +410,8 @@ export default function TriviaApp() {
         {screen === 'results' && results && (
           <div className={styles.resultsScreen}>
             <div className={styles.header}>
-              <h1 className={styles.title}>🏆 ¡Trivia Completada!</h1>
+              <img src="../static/magnetoQuestTrivia.png" alt="MagnetoQuest Trivia" className={styles.logo} />
+              <h1 className={styles.title}>¡Trivia Completada!</h1>
             </div>
 
             <div className={styles.resultsScore}>
@@ -400,38 +440,26 @@ export default function TriviaApp() {
               </div>
             </div>
 
-            {results.summary.strongAreas.length > 0 && (
-              <div className={styles.summarySection}>
-                <div className={styles.summaryTitle}>💪 Áreas fuertes:</div>
-                <div className={styles.areasList}>
-                  {results.summary.strongAreas.map((area, index) => (
-                    <span key={index} className={`${styles.areaTag} ${styles.strongArea}`}>
-                      {area}
-                    </span>
-                  ))}
-                </div>
+            {/* FEEDBACK PERSONALIZADO */}
+            <div className={styles.summarySection}>
+              <div className={styles.summaryTitle}>💬 Análisis personalizado</div>
+              <div style={{
+                color: '#374151',
+                lineHeight: '1.8',
+                fontSize: '1rem',
+                whiteSpace: 'pre-line',
+                textAlign: 'left'
+              }}>
+                {results.summary.personalizedFeedback}
               </div>
-            )}
-
-            {results.summary.weakAreas.length > 0 && (
-              <div className={styles.summarySection}>
-                <div className={styles.summaryTitle}>📚 Áreas a mejorar:</div>
-                <div className={styles.areasList}>
-                  {results.summary.weakAreas.map((area, index) => (
-                    <span key={index} className={`${styles.areaTag} ${styles.weakArea}`}>
-                      {area}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            </div>
 
             <div className={styles.buttonContainer}>
               <button
                 className={`${styles.button} ${styles.buttonPrimary}`}
                 onClick={handleRestart}
               >
-                🔄 Nueva Trivia
+                Nueva Trivia
               </button>
             </div>
           </div>
@@ -445,6 +473,6 @@ export default function TriviaApp() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }
