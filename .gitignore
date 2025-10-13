@@ -49,4 +49,5 @@ coverage/
 *.swo
 
 #typeorm
-server/node_modules/typeorm/
+server/node_modules/typeorm/server/.env
+trivia-service/.env
