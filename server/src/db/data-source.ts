@@ -11,6 +11,7 @@ import { UserMissionProgress } from '../entities/UserMissionProgress';
 import { TriviaQuestion } from '../entities/TriviaQuestion';
 import { TriviaAttempt } from '../entities/TriviaAttempt';
 import { NotificationLog } from '../entities/NotificationLog';
+import { UserProgress } from '../entities/UserProgress';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -27,6 +28,6 @@ export const AppDataSource = new DataSource({
     Badge, BadgeProgress,
     Mission, UserMissionProgress,
     TriviaQuestion, TriviaAttempt,
-    NotificationLog,
+    NotificationLog, UserProgress,
   ],
 });

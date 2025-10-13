@@ -15,6 +15,8 @@ import { Resume } from './entities/Resume';
 import { TriviaAttempt } from './entities/TriviaAttempt';
 import { TriviaQuestion } from './entities/TriviaQuestion';
 import { UserMissionProgress } from './entities/UserMissionProgress';
+import { UserProgress } from './entities/UserProgress';
+import { NotificationService } from './services/NotificationService';
 
 dotenv.config();
 
@@ -26,6 +28,109 @@ app.use(express.json());
 app.get('/api/hello', async (_req, res)=>{
   res.json({message:"Hola desde el back"})
   console.log("Mensaje enviado");
+});
+
+// Endpoints para testing de notificaciones (solo para desarrollo)
+app.post('/api/test/notifications/morning', async (_req, res) => {
+  try {
+    const notificationService = new NotificationService();
+    await notificationService.testMorningNotifications();
+    res.json({ message: 'Morning notifications test completed' });
+  } catch (error) {
+    console.error('Error testing morning notifications:', error);
+    res.status(500).json({ error: 'Failed to test morning notifications' });
+  }
+});
+
+app.post('/api/test/notifications/evening', async (_req, res) => {
+  try {
+    const notificationService = new NotificationService();
+    await notificationService.testEveningNotifications();
+    res.json({ message: 'Evening notifications test completed' });
+  } catch (error) {
+    console.error('Error testing evening notifications:', error);
+    res.status(500).json({ error: 'Failed to test evening notifications' });
+  }
+});
+
+// Endpoints para gestionar user_progress
+app.get('/api/users/:userId/progress', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
+    
+    let userProgress = await userProgressRepo.findOne({
+      where: { user_id: userId }
+    });
+
+    // Si no existe, crear uno nuevo con valores por defecto
+    if (!userProgress) {
+      userProgress = userProgressRepo.create({
+        user_id: userId,
+        streak: 0,
+        has_done_today: false,
+        magento_points: 0
+      });
+      await userProgressRepo.save(userProgress);
+    }
+
+    res.json(userProgress);
+  } catch (error) {
+    console.error('Error fetching user progress:', error);
+    res.status(500).json({ error: 'Failed to fetch user progress' });
+  }
+});
+
+app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
+    
+    let userProgress = await userProgressRepo.findOne({
+      where: { user_id: userId }
+    });
+
+    if (!userProgress) {
+      userProgress = userProgressRepo.create({
+        user_id: userId,
+        streak: 1,
+        has_done_today: true,
+        magento_points: 10 // Puntos por completar trivia
+      });
+    } else {
+      // Si ya completó hoy, no incrementar racha
+      if (!userProgress.has_done_today) {
+        userProgress.streak += 1;
+        userProgress.has_done_today = true;
+        userProgress.magento_points += 10;
+      }
+    }
+    
+    userProgress.updated_at = new Date();
+    await userProgressRepo.save(userProgress);
+
+    res.json(userProgress);
+  } catch (error) {
+    console.error('Error updating user progress:', error);
+    res.status(500).json({ error: 'Failed to update user progress' });
+  }
+});
+
+// Endpoint para resetear el has_done_today a false (se ejecutaría diariamente)
+app.post('/api/admin/reset-daily-progress', async (req, res) => {
+  try {
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
+    
+    await userProgressRepo.update(
+      {}, // Actualizar todos los registros
+      { has_done_today: false }
+    );
+
+    res.json({ message: 'Daily progress reset completed' });
+  } catch (error) {
+    console.error('Error resetting daily progress:', error);
+    res.status(500).json({ error: 'Failed to reset daily progress' });
+  }
 });
 
 
@@ -368,6 +473,11 @@ interface TypeORMInitError {
 AppDataSource.initialize()
   .then(((): void => {
     console.log('✅ TypeORM conectado');
+    
+    // Inicializar el servicio de notificaciones
+    const notificationService = new NotificationService();
+    notificationService.initializeCronJobs();
+    
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)
   .catch(((err: unknown): void => {
