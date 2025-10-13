@@ -532,7 +532,3 @@
         grid-template-columns: 1fr;
     }
 }
-
-:global(.notifications_floatingBtn__cDCBG) {
-  display: none !important;
-}

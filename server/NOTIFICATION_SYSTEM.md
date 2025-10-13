@@ -166,3 +166,32 @@ Para modificar los horarios de envío, edita los cron expressions en `Notificati
 - `'0 14 * * *'` = 9:00 AM Colombia (14:00 UTC)
 - `'0 23 * * *'` = 6:00 PM Colombia (23:00 UTC)
 - `'0 5 * * *'` = 12:00 AM Colombia (05:00 UTC siguiente día)
+
+## Notificaciones de Mission Deadline
+
+Sistema adicional que envía recordatorios para misiones próximas a vencer.
+
+### Características
+
+- **Horario**: 2:00 PM Colombia (19:00 UTC) diariamente
+- **Criterio**: Misiones que vencen en menos de 24 horas y no están completadas
+- **Contenido personalizado** según tiempo restante y progreso actual
+- **Niveles de urgencia**: 🚨 Urgente (<6h), ⚠️ Atención (<24h), ⏰ Recordatorio
+
+### Estructura del Email
+
+- **Asunto**: `⏰ Tu misión "[Nombre]" vence pronto`
+- **Tiempo restante**: Calculado dinámicamente
+- **Progreso actual**: Mensaje motivacional según % completado
+- **Link directo**: Botón hacia `/missions`
+
+### Testing
+
+```bash
+# Probar notificaciones de deadline
+curl -X POST http://localhost:4000/api/test/notifications/mission-deadline
+```
+
+### Configuración del Cron Job
+
+- `'0 19 * * *'` = 2:00 PM Colombia (19:00 UTC)

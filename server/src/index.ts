@@ -144,6 +144,101 @@ app.post('/api/admin/reset-daily-progress', async (req, res) => {
   }
 });
 
+// OBTENER notificaciones de un usuario
+app.get('/api/users/:userId/notifications', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+    
+    const notificationRepo = AppDataSource.getRepository(NotificationLog);
+    
+    const notifications = await notificationRepo.find({
+      where: { user_id: userId },
+      order: { sent_at: 'DESC' },
+      take: Number(limit),
+      skip: Number(offset)
+    });
+
+    // Formatear las notificaciones para el frontend
+    const formattedNotifications = notifications.map(notification => {
+      let title = '';
+      let message = '';
+      let type = 'info';
+      
+      // Determinar título y mensaje basado en el template
+      switch (notification.template) {
+        case 'motivational_reminder':
+          title = '📧 Recordatorio enviado';
+          message = 'Te enviamos un recordatorio por email para mantener tu racha activa';
+          type = 'trivia';
+          break;
+        case 'mission_deadline':  
+          title = '⏰ Misión próxima a vencer';
+          message = `Tu misión está próxima a vencer. Revisa tu email para más detalles`;
+          type = 'mission';
+          break;
+        case 'welcome':
+          title = '🎉 ¡Bienvenido a MagnetoQuest!';
+          message = 'Te damos la bienvenida a nuestra plataforma';
+          type = 'welcome';
+          break;
+        case 'mission_remind':
+          title = '📋 Recordatorio de misión';
+          message = 'No olvides completar tus misiones pendientes';
+          type = 'mission';
+          break;
+        case 'badge_award':
+          title = '🏆 ¡Nueva insignia!';
+          message = 'Has ganado una nueva insignia por tu progreso';
+          type = 'achievement';
+          break;
+        case 'trivia_week':
+          title = '🧠 Resumen semanal de trivia';
+          message = 'Revisa tu progreso semanal en las trivias';
+          type = 'trivia';
+          break;
+        default:
+          title = '🔔 Notificación';
+          message = 'Tienes una nueva notificación';
+          type = 'info';
+      }
+
+      return {
+        id: notification.notification_id,
+        title,
+        message,
+        type,
+        channel: notification.channel,
+        timestamp: notification.sent_at,
+        metadata: notification.metadata
+      };
+    });
+
+    res.json({
+      notifications: formattedNotifications,
+      total: formattedNotifications.length,
+      hasMore: formattedNotifications.length === Number(limit)
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// MARCAR notificación como leída (para futuras implementaciones)
+app.put('/api/users/:userId/notifications/:notificationId/read', async (req, res) => {
+  try {
+    const { userId, notificationId } = req.params;
+    
+    // Por ahora solo devolvemos success, pero en el futuro podríamos
+    // agregar un campo "read_at" a la tabla notification_log
+    res.json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ error: 'Failed to mark notification as read' });
+  }
+});
+
 
 // LISTAR misiones
 app.get('/users/:userId/missions-in-progress', async (req, res) => {
