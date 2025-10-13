@@ -76,6 +76,15 @@ export class AuthService {
   }
 
   /**
+   * Get current logged in user ID
+   * @returns User ID if logged in, null otherwise
+   */
+  static getCurrentUserId(): string | null {
+    const user = this.getCurrentUser();
+    return user?.id || null;
+  }
+
+  /**
    * Save user session to localStorage
    * @param user User to save
    */
