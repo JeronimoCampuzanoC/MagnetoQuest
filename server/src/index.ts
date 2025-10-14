@@ -171,9 +171,29 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
           message = 'Te enviamos un recordatorio por email para mantener tu racha activa';
           type = 'trivia';
           break;
-        case 'mission_deadline':  
-          title = '⏰ Misión próxima a vencer';
-          message = `Tu misión está próxima a vencer. Revisa tu email para más detalles`;
+        case 'mission_deadline_reminder':  
+          const missionTitle = notification.metadata?.mission_title || 'Tu misión';
+          const hoursRemaining = notification.metadata?.hours_remaining || 0;
+          const progress = notification.metadata?.progress || 0;
+          const urgencyLevel = notification.metadata?.urgency_level || 'reminder';
+          
+          let urgencyEmoji = '⏰';
+          if (urgencyLevel === 'urgent') urgencyEmoji = '🚨';
+          else if (urgencyLevel === 'warning') urgencyEmoji = '⚠️';
+          
+          title = `${urgencyEmoji} ${missionTitle}`;
+          
+          let timeText = '';
+          if (hoursRemaining < 1) {
+            timeText = `${Math.floor(hoursRemaining * 60)} minutos`;
+          } else if (hoursRemaining < 24) {
+            timeText = `${Math.floor(hoursRemaining)} horas`;
+          } else {
+            const days = Math.floor(hoursRemaining / 24);
+            timeText = `${days} día${days > 1 ? 's' : ''}`;
+          }
+          
+          message = `Tu misión "${missionTitle}" vence en ${timeText}. Progreso: ${progress}%`;
           type = 'mission';
           break;
         case 'welcome':

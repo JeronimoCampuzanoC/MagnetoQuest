@@ -138,10 +138,10 @@ Para probar las notificaciones sin esperar a las horas programadas:
 
 ```bash
 # Probar notificación matutina
-curl -X POST http://localhost:8000/api/test/notifications/morning
+curl -X POST http://localhost:4000/api/test/notifications/morning
 
 # Probar notificación vespertina
-curl -X POST http://localhost:8000/api/test/notifications/evening
+curl -X POST http://localhost:4000/api/test/notifications/evening
 ```
 
 ## Seguridad y Buenas Prácticas

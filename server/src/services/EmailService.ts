@@ -297,6 +297,32 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendMotivationalEmail(email, name, subject, htmlContent, userId);
+    // Usar método específico para mission deadline en lugar de sendMotivationalEmail
+    try {
+      const mailOptions = {
+        from: process.env.FROM_EMAIL || 'noreply@magnetoquest.com',
+        to: email,
+        subject: subject,
+        html: htmlContent,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      
+      // Registrar la notificación con template específico para mission deadline
+      await this.logNotification(userId, 'email', 'mission_deadline_reminder', {
+        mission_title: missionTitle,
+        hours_remaining: hoursRemaining,
+        progress: progress,
+        urgency_level: hoursRemaining < 6 ? 'urgent' : hoursRemaining < 24 ? 'warning' : 'reminder',
+        subject: subject,
+        recipient: email,
+        sent_at: new Date().toISOString()
+      });
+      
+      console.log(`Mission deadline notification sent to ${email} for "${missionTitle}"`);
+    } catch (error) {
+      console.error(`Error sending mission deadline email to ${email}:`, error);
+      throw error;
+    }
   }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Offcanvas, OffcanvasHeader, OffcanvasBody, Spinner, Badge } from "reactstrap";
 import styles from "./notifications.module.css";
+import { AuthService } from "../services/authService";
 
 interface Notification {
   id: string;
@@ -26,20 +27,15 @@ const Notificaciones: React.FC = () => {
 
   const toggle = () => setOpen(v => !v);
 
-  // Obtener el userId del localStorage (ajustar según tu implementación de auth)
+  // Obtener el userId usando el AuthService
   const getUserId = () => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      return user.id_app_user || user.id;
-    }
-    return null;
+    return AuthService.getCurrentUserId();
   };
 
   const fetchNotifications = async () => {
     const userId = getUserId();
     if (!userId) {
-      setError('Usuario no encontrado');
+      setError('Por favor inicia sesión para ver las notificaciones.');
       return;
     }
 
