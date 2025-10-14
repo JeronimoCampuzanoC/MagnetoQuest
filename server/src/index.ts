@@ -14,6 +14,8 @@ import { NotificationLog } from './entities/NotificationLog';
 import { Resume } from './entities/Resume';
 import { TriviaAttempt } from './entities/TriviaAttempt';
 import { UserMissionProgress } from './entities/UserMissionProgress';
+import { UserProgress } from './entities/UserProgress';
+import { NotificationService } from './services/NotificationService';
 
 dotenv.config();
 
@@ -27,7 +29,6 @@ app.get('/api/hello', async (_req, res)=>{
   console.log("Mensaje enviado");
 });
 
-<<<<<<< HEAD
 // Endpoints para testing de notificaciones (solo para desarrollo)
 app.post('/api/test/notifications/morning', async (_req, res) => {
   try {
@@ -257,8 +258,6 @@ app.put('/api/users/:userId/notifications/:notificationId/read', async (req, res
   }
 });
 
-=======
->>>>>>> 4aef4d3eb122d8260e5f070fea9c3e0350bcbfc2
 
 // LISTAR misiones
 app.get('/users/:userId/missions-in-progress', async (req, res) => {
