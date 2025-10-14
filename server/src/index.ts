@@ -14,8 +14,6 @@ import { NotificationLog } from './entities/NotificationLog';
 import { Resume } from './entities/Resume';
 import { TriviaAttempt } from './entities/TriviaAttempt';
 import { UserMissionProgress } from './entities/UserMissionProgress';
-import { UserProgress } from './entities/UserProgress';
-import { NotificationService } from './services/NotificationService';
 
 dotenv.config();
 
@@ -27,215 +25,6 @@ app.use(express.json());
 app.get('/api/hello', async (_req, res)=>{
   res.json({message:"Hola desde el back"})
   console.log("Mensaje enviado");
-});
-
-// Endpoints para testing de notificaciones (solo para desarrollo)
-app.post('/api/test/notifications/morning', async (_req, res) => {
-  try {
-    const notificationService = new NotificationService();
-    await notificationService.testMorningNotifications();
-    res.json({ message: 'Morning notifications test completed' });
-  } catch (error) {
-    console.error('Error testing morning notifications:', error);
-    res.status(500).json({ error: 'Failed to test morning notifications' });
-  }
-});
-
-app.post('/api/test/notifications/evening', async (_req, res) => {
-  try {
-    const notificationService = new NotificationService();
-    await notificationService.testEveningNotifications();
-    res.json({ message: 'Evening notifications test completed' });
-  } catch (error) {
-    console.error('Error testing evening notifications:', error);
-    res.status(500).json({ error: 'Failed to test evening notifications' });
-  }
-});
-
-app.post('/api/test/notifications/mission-deadline', async (_req, res) => {
-  try {
-    const notificationService = new NotificationService();
-    await notificationService.testMissionDeadlineNotifications();
-    res.json({ message: 'Mission deadline notifications test completed' });
-  } catch (error) {
-    console.error('Error testing mission deadline notifications:', error);
-    res.status(500).json({ error: 'Failed to test mission deadline notifications' });
-  }
-});
-
-// Endpoints para gestionar user_progress
-app.get('/api/users/:userId/progress', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const userProgressRepo = AppDataSource.getRepository(UserProgress);
-    
-    let userProgress = await userProgressRepo.findOne({
-      where: { user_id: userId }
-    });
-
-    // Si no existe, crear uno nuevo con valores por defecto
-    if (!userProgress) {
-      userProgress = userProgressRepo.create({
-        user_id: userId,
-        streak: 0,
-        has_done_today: false,
-        magento_points: 0
-      });
-      await userProgressRepo.save(userProgress);
-    }
-
-    res.json(userProgress);
-  } catch (error) {
-    console.error('Error fetching user progress:', error);
-    res.status(500).json({ error: 'Failed to fetch user progress' });
-  }
-});
-
-app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const userProgressRepo = AppDataSource.getRepository(UserProgress);
-    
-    let userProgress = await userProgressRepo.findOne({
-      where: { user_id: userId }
-    });
-
-    if (!userProgress) {
-      userProgress = userProgressRepo.create({
-        user_id: userId,
-        streak: 1,
-        has_done_today: true,
-        magento_points: 10 // Puntos por completar trivia
-      });
-    } else {
-      // Si ya completó hoy, no incrementar racha
-      if (!userProgress.has_done_today) {
-        userProgress.streak += 1;
-        userProgress.has_done_today = true;
-        userProgress.magento_points += 10;
-      }
-    }
-    
-    userProgress.updated_at = new Date();
-    await userProgressRepo.save(userProgress);
-
-    res.json(userProgress);
-  } catch (error) {
-    console.error('Error updating user progress:', error);
-    res.status(500).json({ error: 'Failed to update user progress' });
-  }
-});
-
-// Endpoint para resetear el has_done_today a false (se ejecutaría diariamente)
-app.post('/api/admin/reset-daily-progress', async (req, res) => {
-  try {
-    const userProgressRepo = AppDataSource.getRepository(UserProgress);
-    
-    await userProgressRepo.update(
-      {}, // Actualizar todos los registros
-      { has_done_today: false }
-    );
-
-    res.json({ message: 'Daily progress reset completed' });
-  } catch (error) {
-    console.error('Error resetting daily progress:', error);
-    res.status(500).json({ error: 'Failed to reset daily progress' });
-  }
-});
-
-// OBTENER notificaciones de un usuario
-app.get('/api/users/:userId/notifications', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
-    
-    const notificationRepo = AppDataSource.getRepository(NotificationLog);
-    
-    const notifications = await notificationRepo.find({
-      where: { user_id: userId },
-      order: { sent_at: 'DESC' },
-      take: Number(limit),
-      skip: Number(offset)
-    });
-
-    // Formatear las notificaciones para el frontend
-    const formattedNotifications = notifications.map(notification => {
-      let title = '';
-      let message = '';
-      let type = 'info';
-      
-      // Determinar título y mensaje basado en el template
-      switch (notification.template) {
-        case 'motivational_reminder':
-          title = '📧 Recordatorio enviado';
-          message = 'Te enviamos un recordatorio por email para mantener tu racha activa';
-          type = 'trivia';
-          break;
-        case 'mission_deadline':  
-          title = '⏰ Misión próxima a vencer';
-          message = `Tu misión está próxima a vencer. Revisa tu email para más detalles`;
-          type = 'mission';
-          break;
-        case 'welcome':
-          title = '🎉 ¡Bienvenido a MagnetoQuest!';
-          message = 'Te damos la bienvenida a nuestra plataforma';
-          type = 'welcome';
-          break;
-        case 'mission_remind':
-          title = '📋 Recordatorio de misión';
-          message = 'No olvides completar tus misiones pendientes';
-          type = 'mission';
-          break;
-        case 'badge_award':
-          title = '🏆 ¡Nueva insignia!';
-          message = 'Has ganado una nueva insignia por tu progreso';
-          type = 'achievement';
-          break;
-        case 'trivia_week':
-          title = '🧠 Resumen semanal de trivia';
-          message = 'Revisa tu progreso semanal en las trivias';
-          type = 'trivia';
-          break;
-        default:
-          title = '🔔 Notificación';
-          message = 'Tienes una nueva notificación';
-          type = 'info';
-      }
-
-      return {
-        id: notification.notification_id,
-        title,
-        message,
-        type,
-        channel: notification.channel,
-        timestamp: notification.sent_at,
-        metadata: notification.metadata
-      };
-    });
-
-    res.json({
-      notifications: formattedNotifications,
-      total: formattedNotifications.length,
-      hasMore: formattedNotifications.length === Number(limit)
-    });
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    res.status(500).json({ error: 'Failed to fetch notifications' });
-  }
-});
-
-// MARCAR notificación como leída (para futuras implementaciones)
-app.put('/api/users/:userId/notifications/:notificationId/read', async (req, res) => {
-  try {
-    const { userId, notificationId } = req.params;
-    
-    // Por ahora solo devolvemos success, pero en el futuro podríamos
-    // agregar un campo "read_at" a la tabla notification_log
-    res.json({ success: true, message: 'Notification marked as read' });
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-    res.status(500).json({ error: 'Failed to mark notification as read' });
-  }
 });
 
 
@@ -573,15 +362,6 @@ app.post('/api/trivia-attempts', async (req, res) => {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    // Verificar que el usuario existe
-    const userRepo = AppDataSource.getRepository(AppUser);
-    const userExists = await userRepo.findOne({ where: { id_app_user: user_id } });
-
-    if (!userExists) {
-      console.error(`Usuario con ID ${user_id} no encontrado`);
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
     const repo = AppDataSource.getRepository(TriviaAttempt);
     const attempt = repo.create({
       user_id,
@@ -600,7 +380,68 @@ app.post('/api/trivia-attempts', async (req, res) => {
   }
 });
 
+// OBTENER ESTADÍSTICAS DE TRIVIA POR USUARIO
+app.get('/api/trivia-stats/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const repo = AppDataSource.getRepository(TriviaAttempt);
 
+    // Obtener promedios
+    const averagesQuery = await repo
+      .createQueryBuilder('attempt')
+      .select([
+        'AVG(attempt.score)::float as average_score',
+        'AVG(attempt.precision_score)::float as average_precision',
+        'AVG(attempt.total_time)::float as average_time'
+      ])
+      .where('attempt.user_id = :userId', { userId })
+      .getRawOne();
+
+    // Obtener conteo por dificultad usando SQL directo para mayor control
+    const difficultyCountsQuery = await AppDataSource.manager.query(`
+      WITH difficulties(difficulty) AS (
+        VALUES ('easy'::difficulty), ('medium'::difficulty), ('hard'::difficulty)
+      )
+      SELECT 
+        d.difficulty,
+        COALESCE(COUNT(ta.attempt_id), 0)::integer as count
+      FROM difficulties d
+      LEFT JOIN trivia_attempt ta ON 
+        ta.difficulty = d.difficulty AND 
+        ta.user_id = $1
+      GROUP BY d.difficulty
+      ORDER BY d.difficulty;
+    `, [userId]);
+
+    // Procesar conteos por dificultad en un objeto
+    const difficultyCounts: { [key in 'easy' | 'medium' | 'hard']: number } = {
+      easy: 0,
+      medium: 0,
+      hard: 0
+    };
+
+    difficultyCountsQuery.forEach((item: { difficulty: string, count: string }) => {
+      const difficulty = item.difficulty as 'easy' | 'medium' | 'hard';
+      // Convertir a número de forma segura
+      difficultyCounts[difficulty] = parseInt(item.count) || 0;
+    });
+
+    // Combinar resultados
+    const stats = {
+      averages: {
+        score: parseFloat(averagesQuery.average_score || '0'),
+        precision: parseFloat(averagesQuery.average_precision || '0'),
+        time: parseFloat(averagesQuery.average_time || '0')
+      },
+      attemptsByDifficulty: difficultyCounts
+    };
+
+    res.json(stats);
+  } catch (e) {
+    console.error('Error al obtener estadísticas de trivia:', e);
+    res.status(500).json({ error: 'Error al consultar la base de datos' });
+  }
+});
 
 const PORT = process.env.PORT || 4000;
 
@@ -616,11 +457,6 @@ interface TypeORMInitError {
 AppDataSource.initialize()
   .then(((): void => {
     console.log('✅ TypeORM conectado');
-    
-    // Inicializar el servicio de notificaciones
-    const notificationService = new NotificationService();
-    notificationService.initializeCronJobs();
-    
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)
   .catch(((err: unknown): void => {
