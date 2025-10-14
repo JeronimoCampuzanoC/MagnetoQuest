@@ -14,8 +14,6 @@ import { NotificationLog } from './entities/NotificationLog';
 import { Resume } from './entities/Resume';
 import { TriviaAttempt } from './entities/TriviaAttempt';
 import { UserMissionProgress } from './entities/UserMissionProgress';
-import { UserProgress } from './entities/UserProgress';
-import { NotificationService } from './services/NotificationService';
 
 dotenv.config();
 
@@ -29,6 +27,7 @@ app.get('/api/hello', async (_req, res)=>{
   console.log("Mensaje enviado");
 });
 
+<<<<<<< HEAD
 // Endpoints para testing de notificaciones (solo para desarrollo)
 app.post('/api/test/notifications/morning', async (_req, res) => {
   try {
@@ -258,6 +257,8 @@ app.put('/api/users/:userId/notifications/:notificationId/read', async (req, res
   }
 });
 
+=======
+>>>>>>> 4aef4d3eb122d8260e5f070fea9c3e0350bcbfc2
 
 // LISTAR misiones
 app.get('/users/:userId/missions-in-progress', async (req, res) => {
@@ -593,15 +594,6 @@ app.post('/api/trivia-attempts', async (req, res) => {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    // Verificar que el usuario existe
-    const userRepo = AppDataSource.getRepository(AppUser);
-    const userExists = await userRepo.findOne({ where: { id_app_user: user_id } });
-
-    if (!userExists) {
-      console.error(`Usuario con ID ${user_id} no encontrado`);
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
     const repo = AppDataSource.getRepository(TriviaAttempt);
     const attempt = repo.create({
       user_id,
@@ -620,7 +612,68 @@ app.post('/api/trivia-attempts', async (req, res) => {
   }
 });
 
+// OBTENER ESTADÍSTICAS DE TRIVIA POR USUARIO
+app.get('/api/trivia-stats/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const repo = AppDataSource.getRepository(TriviaAttempt);
 
+    // Obtener promedios
+    const averagesQuery = await repo
+      .createQueryBuilder('attempt')
+      .select([
+        'AVG(attempt.score)::float as average_score',
+        'AVG(attempt.precision_score)::float as average_precision',
+        'AVG(attempt.total_time)::float as average_time'
+      ])
+      .where('attempt.user_id = :userId', { userId })
+      .getRawOne();
+
+    // Obtener conteo por dificultad usando SQL directo para mayor control
+    const difficultyCountsQuery = await AppDataSource.manager.query(`
+      WITH difficulties(difficulty) AS (
+        VALUES ('easy'::difficulty), ('medium'::difficulty), ('hard'::difficulty)
+      )
+      SELECT 
+        d.difficulty,
+        COALESCE(COUNT(ta.attempt_id), 0)::integer as count
+      FROM difficulties d
+      LEFT JOIN trivia_attempt ta ON 
+        ta.difficulty = d.difficulty AND 
+        ta.user_id = $1
+      GROUP BY d.difficulty
+      ORDER BY d.difficulty;
+    `, [userId]);
+
+    // Procesar conteos por dificultad en un objeto
+    const difficultyCounts: { [key in 'easy' | 'medium' | 'hard']: number } = {
+      easy: 0,
+      medium: 0,
+      hard: 0
+    };
+
+    difficultyCountsQuery.forEach((item: { difficulty: string, count: string }) => {
+      const difficulty = item.difficulty as 'easy' | 'medium' | 'hard';
+      // Convertir a número de forma segura
+      difficultyCounts[difficulty] = parseInt(item.count) || 0;
+    });
+
+    // Combinar resultados
+    const stats = {
+      averages: {
+        score: parseFloat(averagesQuery.average_score || '0'),
+        precision: parseFloat(averagesQuery.average_precision || '0'),
+        time: parseFloat(averagesQuery.average_time || '0')
+      },
+      attemptsByDifficulty: difficultyCounts
+    };
+
+    res.json(stats);
+  } catch (e) {
+    console.error('Error al obtener estadísticas de trivia:', e);
+    res.status(500).json({ error: 'Error al consultar la base de datos' });
+  }
+});
 
 const PORT = process.env.PORT || 4000;
 
@@ -636,11 +689,6 @@ interface TypeORMInitError {
 AppDataSource.initialize()
   .then(((): void => {
     console.log('✅ TypeORM conectado');
-    
-    // Inicializar el servicio de notificaciones
-    const notificationService = new NotificationService();
-    notificationService.initializeCronJobs();
-    
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)
   .catch(((err: unknown): void => {

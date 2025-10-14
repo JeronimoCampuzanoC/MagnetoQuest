@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styles from "./profileTabs.module.css";
 import ProjectCertificate from "./ProjectCertificate";
+import PerformanceTrivia from "./PerformanceTrivia";
 import {
   TabContent, TabPane,
   Card, CardBody
@@ -16,6 +17,7 @@ const TABS: Tab[] = [
   { id: "perfil", label: "Editar Perfil", icon: <span className={styles.icon}>👤</span> },
   { id: "cv", label: "Diseño de mi hoja de vida", icon: <span className={styles.icon}>🗂️</span> },
   { id: "proyectos", label: "Proyectos y Certificados", icon: <span className={styles.icon}>📄</span> },
+  { id: "rendimientoTrivias", label: "Rendimiento en mis trivias", icon: <span className={styles.icon}>🎯</span> },
 ];
 
 export default function ProfileTabs() {
@@ -66,6 +68,16 @@ export default function ProfileTabs() {
               <h5 className="mb-3">Proyectos y Certificados</h5>
               {/* Componente que maneja los tabs internos de proyectos/certificados */}
               <ProjectCertificate />
+            </CardBody>
+          </Card>
+        </TabPane>
+
+        <TabPane tabId="rendimientoTrivias">
+          <Card>
+            <CardBody>
+              <h5 className="mb-3"></h5>
+              {/* Componente que maneja los tabs internos de proyectos/certificados */}
+              <PerformanceTrivia/>
             </CardBody>
           </Card>
         </TabPane>
