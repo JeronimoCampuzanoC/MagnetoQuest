@@ -7,6 +7,13 @@ export enum MissionStatus { // solo para tipos si quisieras usarlo en código
   COMPLETED = 'completed',
 }
 
+export enum MissionCategory {
+  TRIVIA = 'Trivia',
+  CERTIFICATE = 'Certificate',
+  PROJECT = 'Project',
+  CV = 'CV',
+}
+
 @Entity({ name: 'mission' })
 @Check('chk_mission_xp_nonneg', 'xp_reward >= 0')
 @Check('chk_mission_objective_positive', 'objective >= 1')
@@ -20,8 +27,13 @@ export class Mission {
   @Column({ name: 'description', type: 'text', nullable: true })
   description!: string | null;
 
-  @Column({ name: 'category', type: 'text', nullable: true })
-  category!: string | null;
+  @Column({ 
+    name: 'category', 
+    type: 'enum',
+    enum: MissionCategory,
+    nullable: true 
+  })
+  category!: MissionCategory | null;
 
   @Column({ name: 'xp_reward', type: 'int', default: 10 })
   xp_reward!: number;
