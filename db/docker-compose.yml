@@ -15,7 +15,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./initdb:/docker-entrypoint-initdb.d  # ← Sin :ro para evitar problemas de permisos
+      - ./initdb:/docker-entrypoint-initdb.d:ro,Z  # ← Sin :ro para evitar problemas de permisos
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U poc_user -d poc_db"]
       interval: 2s
