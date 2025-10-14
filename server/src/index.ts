@@ -604,6 +604,42 @@ app.post('/api/trivia-attempts', async (req, res) => {
     });
 
     await repo.save(attempt);
+
+    // 🎯 ACTUALIZAR PROGRESO DE BADGES DE TIPO TRIVIA
+    try {
+      const badgeProgressRepo = AppDataSource.getRepository(BadgeProgress);
+      
+      // Buscar todos los badge_progress del usuario que tengan badge con category = 'Trivia'
+      // y donde el progress actual sea menor que el quantity del badge
+      const triviaBadgeProgresses = await badgeProgressRepo
+        .createQueryBuilder('bp')
+        .innerJoinAndSelect('bp.badge', 'badge')
+        .where('bp.user_id = :userId', { userId: user_id })
+        .andWhere('badge.category = :category', { category: 'Trivia' })
+        .andWhere('bp.progress < badge.quantity')
+        .andWhere('bp.awarded_at IS NULL') // Solo badges no completados
+        .getMany();
+
+      console.log(`📊 Encontrados ${triviaBadgeProgresses.length} badges de Trivia para actualizar`);
+
+      // Incrementar el progress de cada badge encontrado
+      for (const badgeProgress of triviaBadgeProgresses) {
+        badgeProgress.progress += 1;
+        
+        // Si alcanzó la cantidad requerida, marcar como completado
+        if (badgeProgress.progress >= badgeProgress.badge.quantity!) {
+          badgeProgress.awarded_at = new Date();
+          console.log(`🏆 Badge "${badgeProgress.badge.badge_name}" completado para usuario ${user_id}`);
+        }
+        
+        await badgeProgressRepo.save(badgeProgress);
+        console.log(`✅ Progress actualizado para badge "${badgeProgress.badge.badge_name}": ${badgeProgress.progress}/${badgeProgress.badge.quantity}`);
+      }
+    } catch (badgeError) {
+      console.error('❌ Error al actualizar progreso de badges:', badgeError);
+      // No fallar la petición principal si hay error en badges
+    }
+
     res.status(201).json(attempt);
   } catch (e) {
     console.error('Error al guardar intento de trivia:', e);
