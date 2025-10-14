@@ -141,7 +141,7 @@ Para probar las notificaciones sin esperar a las horas programadas:
 curl -X POST http://localhost:4000/api/test/notifications/morning
 
 # Probar notificación vespertina
-curl -X POST http://localhost:4000/api/test/notifications/evening
+git 
 ```
 
 ## Seguridad y Buenas Prácticas
