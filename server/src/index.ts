@@ -16,6 +16,7 @@ import { TriviaAttempt } from './entities/TriviaAttempt';
 import { UserMissionProgress } from './entities/UserMissionProgress';
 import { UserProgress } from './entities/UserProgress';
 import { NotificationService } from './services/NotificationService';
+import { dailyResetService } from './services/DailyResetService';
 
 dotenv.config();
 
@@ -126,9 +127,44 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
   }
 });
 
-// Endpoint para resetear el has_done_today a false (se ejecutaría diariamente)
-app.post('/api/admin/reset-daily-progress', async (req, res) => {
+// ======================================
+// ENDPOINTS DE ADMINISTRACIÓN DEL RESET DIARIO
+// ======================================
+
+// Endpoint para ejecutar el reset diario manualmente (útil para testing/debugging)
+app.post('/api/admin/daily-reset/execute', async (_req, res) => {
   try {
+    await dailyResetService.performDailyReset();
+    res.json({ 
+      message: 'Reset diario ejecutado correctamente',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error ejecutando reset diario manual:', error);
+    res.status(500).json({ error: 'Error al ejecutar el reset diario' });
+  }
+});
+
+// Endpoint para obtener el estado del servicio de reset diario
+app.get('/api/admin/daily-reset/status', (_req, res) => {
+  try {
+    const status = dailyResetService.getStatus();
+    res.json({
+      ...status,
+      serverTime: new Date().toISOString(),
+      timezone: 'America/Bogota'
+    });
+  } catch (error) {
+    console.error('Error obteniendo estado del servicio:', error);
+    res.status(500).json({ error: 'Error al obtener el estado' });
+  }
+});
+
+// Endpoint para resetear el has_done_today a false (DEPRECATED - usar /api/admin/daily-reset/execute)
+app.post('/api/admin/reset-daily-progress', async (_req, res) => {
+  try {
+    console.log('⚠️  [DEPRECATED] Este endpoint está deprecado. Usa /api/admin/daily-reset/execute en su lugar');
+    
     const userProgressRepo = AppDataSource.getRepository(UserProgress);
     
     await userProgressRepo.update(
@@ -136,7 +172,10 @@ app.post('/api/admin/reset-daily-progress', async (req, res) => {
       { has_done_today: false }
     );
 
-    res.json({ message: 'Daily progress reset completed' });
+    res.json({ 
+      message: 'Daily progress reset completed (DEPRECATED - usa /api/admin/daily-reset/execute)',
+      warning: 'Este endpoint está deprecado y será removido en futuras versiones'
+    });
   } catch (error) {
     console.error('Error resetting daily progress:', error);
     res.status(500).json({ error: 'Failed to reset daily progress' });
@@ -724,6 +763,10 @@ interface TypeORMInitError {
 AppDataSource.initialize()
   .then(((): void => {
     console.log('✅ TypeORM conectado');
+    
+    // 🔄 Iniciar el servicio de reset diario
+    dailyResetService.start();
+    
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)
   .catch(((err: unknown): void => {
