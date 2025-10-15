@@ -298,24 +298,44 @@ app.put('/api/users/:userId/notifications/:notificationId/read', async (req, res
   }
 });
 
-
-// LISTAR misiones
+// LISTAR MISIONES EN PROGRESO DE UN USUARIO
 app.get('/users/:userId/missions-in-progress', async (req, res) => {
   const { userId } = req.params;
-  console.log('Listando misiones en progreso para userId=', userId);
-  const qb = AppDataSource.getRepository(UserMissionProgress)
-    .createQueryBuilder('ump')
-    .innerJoin('ump.mission', 'm')
-    .select([
-      'm.mission_id AS id',
-      'm.title       AS text',
-      "CASE WHEN ump.status = 'in_progress' THEN TRUE ELSE FALSE END AS active",
-    ])
-    .where('ump.user_id = :userId', { userId })
-    .orderBy('m.created_at', 'DESC');
+  console.log('Listando misiones para userId=', userId);
+  try {
+    const qb = AppDataSource.getRepository(UserMissionProgress)
+      .createQueryBuilder('ump')
+      .innerJoin('ump.mission', 'm')
+      .select([
+        'm.mission_id',
+        'm.title',
+        'm.description',
+        'm.category',
+        'ump.progress',
+        'm.objective',
+        'ump.ends_at',
+        'ump.status',
+      ])
+      .where('ump.user_id = :userId', { userId });
 
-  const result = await qb.getRawMany(); // ya sale con { id, text, active }
-  res.json(result);
+    const result = await qb.getRawMany();
+
+    const mapped = result.map(r => ({
+      id: r.m_mission_id,
+      title: r.m_title,
+      description: r.m_description,
+      category: r.m_category,
+      progress: r.ump_progress,
+      objective: r.m_objective,
+      ends_at: r.ump_ends_at,
+      active: r.ump_status === 'completed',  // ✅ true = completada
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error('Error listing missions for user', userId, err);
+    res.status(500).json({ error: 'DB error' });
+  }
 });
 
 
@@ -324,13 +344,13 @@ app.get('/users/:userId/badges', async (req, res) => {
   const { userId } = req.params;
   console.log('Listando insignias para userId=', userId);
   try {
-    // Badge no tiene relación directa a AppUser; la relación viene a través de badge_progress
     const qb = AppDataSource.getRepository(BadgeProgress)
       .createQueryBuilder('bp')
       .innerJoin('bp.badge', 'b')
       .select([
         'b.badge_name AS badge_name',
         'b.badge_score AS badge_score',
+        'b.category AS category',  // ← Agregar esto
       ])
       .where('bp.user_id = :userId', { userId })
       .orderBy('b.badge_name', 'ASC');

@@ -3,9 +3,20 @@ import { Offcanvas, OffcanvasHeader, OffcanvasBody } from "reactstrap";
 import styles from "./badgesOffCanvas.module.css";
 import { AuthService } from "../../services/authService";
 
+type CategoryType = 'Trivia' | 'Streak' | 'MagnetoPoints' | 'CV';
+
 type OptionItem = {
   badge_name: string;
   badge_score: number;
+  category: CategoryType;
+};
+
+// Configuración de categorías con emojis y colores
+const categoryConfig: Record<CategoryType, { label: string; emoji: string; className: string }> = {
+  Trivia: { label: 'Trivia', emoji: '🧠', className: styles.categoryTrivia },
+  Streak: { label: 'Racha', emoji: '🔥', className: styles.categoryStreak },
+  MagnetoPoints: { label: 'Magneto', emoji: '⭐', className: styles.categoryMagnetoPoints },
+  CV: { label: 'CV', emoji: '📄', className: styles.categoryCV }
 };
 
 const BadgesOffCanvas: React.FC = () => {
@@ -24,15 +35,24 @@ const BadgesOffCanvas: React.FC = () => {
   useEffect(() => {
     const storedUser = AuthService.getCurrentUserId();
     const userId = storedUser || null;
+    
     const fetchBadge = async () => {
       setLoading(true);
       try {
         if (!userId) throw new Error("No user ID found");
         const res = await fetch(`/users/${userId}/badges`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: Array<{ badge_name: string; badge_score: number }> =
-          await res.json();
-        setItems(data.map(d => ({ badge_name: d.badge_name, badge_score: d.badge_score })));
+        const data: Array<{ 
+          badge_name: string; 
+          badge_score: number;
+          category: CategoryType;
+        }> = await res.json();
+        
+        setItems(data.map(d => ({ 
+          badge_name: d.badge_name, 
+          badge_score: d.badge_score,
+          category: d.category
+        })));
         setError(null);
       } catch (e: any) {
         console.error("Error fetching insignias", e);
@@ -56,7 +76,9 @@ const BadgesOffCanvas: React.FC = () => {
           <div className={styles.headerWrap}>
             <div className={styles.headerTitle}>Tus insignias</div>
             <div className={styles.headerMeta}>
-              <span className={styles.chip}>{items.length} {items.length === 1 ? "insignia" : "insignias"}</span>
+              <span className={styles.chip}>
+                {items.length} {items.length === 1 ? "insignia" : "insignias"}
+              </span>
               <span className={styles.chipSuccess}>{totalPoints} pts</span>
             </div>
           </div>
@@ -83,15 +105,32 @@ const BadgesOffCanvas: React.FC = () => {
             </div>
           ) : (
             <div className={styles.grid}>
-              {items.map((b, idx) => (
-                <div key={idx} className={styles.card}>
-                  <div className={styles.iconCircle} aria-hidden>✅</div>
-                  <div className={styles.badgeInfo}>
-                    <div className={styles.badgeName}>{b.badge_name}</div>
-                    <div className={styles.scorePill}>{b.badge_score} pts</div>
+              {items.map((b, idx) => {
+                const config = categoryConfig[b.category];
+                return (
+                  <div key={idx} className={styles.card}>
+                    <div className={styles.cardContent}>
+                      {/* Icono */}
+                      <div className={styles.iconCircle} aria-hidden>✅</div>
+                      
+                      {/* Contenido */}
+                      <div className={styles.badgeContent}>
+                        {/* Categoría */}
+                        <div className={`${styles.categoryBadge} ${config.className}`}>
+                          <span>{config.emoji}</span>
+                          <span>{config.label}</span>
+                        </div>
+                        
+                        {/* Nombre */}
+                        <div className={styles.badgeName}>{b.badge_name}</div>
+                      </div>
+
+                      {/* Puntos */}
+                      <div className={styles.scorePill}>{b.badge_score} pts</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </OffcanvasBody>
