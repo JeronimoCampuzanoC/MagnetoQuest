@@ -121,6 +121,79 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
     userProgress.updated_at = new Date();
     await userProgressRepo.save(userProgress);
 
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO TRIVIA
+    try {
+      const missionRepo = AppDataSource.getRepository(Mission);
+      const userMissionRepo = AppDataSource.getRepository(UserMissionProgress);
+      
+      // Buscar misiones activas de tipo Trivia
+      const triviaMissions = await missionRepo.find({
+        where: {
+          category: MissionCategory.TRIVIA,
+          is_active: true
+        }
+      });
+
+      console.log(`📋 [Trivia] Encontradas ${triviaMissions.length} misiones de tipo Trivia activas`);
+
+      for (const mission of triviaMissions) {
+        // Buscar el progreso del usuario para esta misión
+        let missionProgress = await userMissionRepo.findOne({
+          where: {
+            user_id: userId,
+            mission_id: mission.mission_id,
+            status: In(['not_started', 'in_progress'])
+          }
+        });
+
+        if (missionProgress) {
+          console.log(`🎯 [Trivia] Actualizando misión: "${mission.title}" para usuario ${userId}`);
+
+          // Incrementar el progreso solo si no está completada
+          if (missionProgress.status !== 'completed') {
+            missionProgress.progress += 1;
+            console.log(`➕ [Trivia] Progreso de misión "${mission.title}": ${missionProgress.progress}/${mission.objective}`);
+
+            // Verificar si la misión se completó
+            if (missionProgress.progress >= mission.objective) {
+              missionProgress.status = 'completed';
+              missionProgress.completed_at = new Date();
+              console.log(`🏆 [Trivia] ¡Misión "${mission.title}" completada!`);
+
+              // 🎁 Otorgar recompensa de XP (magento_points) de la misión
+              try {
+                // Recargar userProgress para tener la versión más reciente
+                userProgress = await userProgressRepo.findOne({
+                  where: { user_id: userId }
+                });
+
+                if (userProgress) {
+                  userProgress.magento_points += mission.xp_reward;
+                  userProgress.updated_at = new Date();
+                  await userProgressRepo.save(userProgress);
+                  console.log(`💰 [Trivia] +${mission.xp_reward} puntos de misión otorgados. Total: ${userProgress.magento_points}`);
+                }
+              } catch (xpError) {
+                console.error('❌ [Trivia] Error al otorgar XP de misión:', xpError);
+              }
+            } else {
+              // Si no está completada, asegurar que el estado sea in_progress
+              if (missionProgress.status === 'not_started') {
+                missionProgress.status = 'in_progress';
+                missionProgress.starts_at = new Date();
+              }
+            }
+
+            await userMissionRepo.save(missionProgress);
+            console.log(`✅ [Trivia] Progreso de misión guardado`);
+          }
+        }
+      }
+    } catch (missionError) {
+      console.error('⚠️ [Trivia] Error al actualizar progreso de misiones:', missionError);
+      // No fallar la respuesta si hay error en las misiones
+    }
+
     res.json(userProgress);
   } catch (error) {
     console.error('Error updating user progress:', error);
