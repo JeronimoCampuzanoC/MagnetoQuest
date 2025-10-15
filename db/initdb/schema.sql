@@ -278,16 +278,25 @@ INSERT INTO mission (title, description, category, xp_reward, objective, is_acti
 -- SEED: USER_MISSION_PROGRESS (10)  (pares únicos)
 -- =========================
 INSERT INTO user_mission_progress (user_id, mission_id, status, progress, starts_at, ends_at, completed_at) VALUES
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 0), 'in_progress', 40, NOW() - INTERVAL '7 days', NOW() + INTERVAL '23 days', NULL),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 1), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 1), 'completed', 100, NOW() - INTERVAL '6 days', NOW() + INTERVAL '24 days', NOW() - INTERVAL '1 day'),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 2), 'not_started', 0, NOW() - INTERVAL '5 days', NOW() + INTERVAL '35 days', NULL),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 3), 'in_progress', 70, NOW() - INTERVAL '4 days', NOW() + INTERVAL '16 days', NULL),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 4), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 4), 'in_progress', 30, NOW() - INTERVAL '10 days', NOW() + INTERVAL '23 hours', NULL),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 5), 'not_started', 0, NOW() - INTERVAL '12 days', NOW() + INTERVAL '48 days', NULL),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 6), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 6), 'completed', 100, NOW() - INTERVAL '2 days', NOW() + INTERVAL '13 days', NOW() - INTERVAL '2 days'),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 7), 'in_progress', 55, NOW() - INTERVAL '3 days', NOW() + INTERVAL '9 days', NULL),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 8), 'in_progress', 20, NOW() - INTERVAL '8 days', NOW() + INTERVAL '37 days', NULL),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 9), 'not_started', 0, NOW() - INTERVAL '1 days', NOW() + INTERVAL '12 hours', NULL);
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 0), 'in_progress', 40, NOW() - INTERVAL '7 days', NOW() + INTERVAL '23 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 1), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 1), 'completed', 100, NOW() - INTERVAL '6 days', NOW() + INTERVAL '24 days', NOW() - INTERVAL '1 day'),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 2), 'not_started', 0, NOW() - INTERVAL '5 days', NOW() + INTERVAL '35 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 3), 'in_progress', 70, NOW() - INTERVAL '4 days', NOW() + INTERVAL '16 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 4), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 4), 'in_progress', 30, NOW() - INTERVAL '10 days', NOW() + INTERVAL '23 hours', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 5), 'not_started', 0, NOW() - INTERVAL '12 days', NOW() + INTERVAL '48 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 6), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 6), 'completed', 100, NOW() - INTERVAL '2 days', NOW() + INTERVAL '13 days', NOW() - INTERVAL '2 days'),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 7), 'in_progress', 55, NOW() - INTERVAL '3 days', NOW() + INTERVAL '9 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 8), 'in_progress', 20, NOW() - INTERVAL '8 days', NOW() + INTERVAL '37 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 9), 'not_started', 0, NOW() - INTERVAL '1 days', NOW() + INTERVAL '12 hours', NULL),
+    -- 🎯 MISIONES DE ANA TORRES (una de cada categoría, todas en progreso)
+    -- CV: "Completa tu perfil" (0 de 1)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Completa tu perfil'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
+    -- Project: "Sube un proyecto" (0 de 1)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Sube un proyecto'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
+    -- Certificate: "Consigue 3 certs" (1 de 3)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Consigue 3 certs'), 'in_progress', 1, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
+    -- Trivia: "Responde 5 trivias" (2 de 5)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Responde 5 trivias'), 'in_progress', 2, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL);
 
 -- =========================
 -- SEED: TRIVIA_ATTEMPT (10)  (pares únicos user/question)
