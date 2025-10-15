@@ -399,6 +399,89 @@ app.post('/api/projects', async (req, res) => {
     }
     
     await repo.save(project);
+
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO PROJECT
+    try {
+      const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+      const missionRepo = AppDataSource.getRepository(Mission);
+
+      // Buscar todas las misiones activas de tipo Project
+      const projectMissions = await missionRepo
+        .createQueryBuilder('m')
+        .where('m.category = :category', { category: 'Project' })
+        .andWhere('m.is_active = :active', { active: true })
+        .getMany();
+
+      console.log(`📂 [Projects] Encontradas ${projectMissions.length} misiones de tipo Project activas`);
+
+      // Para cada misión de Project, actualizar el progreso del usuario
+      for (const mission of projectMissions) {
+        // Buscar o crear el progreso de esta misión para el usuario
+        let missionProgress = await missionProgressRepo.findOne({
+          where: {
+            user_id: projectUserId,
+            mission_id: mission.mission_id
+          }
+        });
+
+        if (!missionProgress) {
+          // Si no existe, crear el progreso inicial
+          missionProgress = missionProgressRepo.create({
+            user_id: projectUserId,
+            mission_id: mission.mission_id,
+            status: 'in_progress',
+            progress: 0,
+            starts_at: new Date(),
+            ends_at: null
+          });
+          console.log(`✨ [Projects] Creando progreso inicial para misión "${mission.title}"`);
+        }
+
+        // Incrementar el progreso solo si no está completada
+        if (missionProgress.status !== 'completed') {
+          missionProgress.progress += 1;
+          console.log(`➕ [Projects] Progreso de misión "${mission.title}": ${missionProgress.progress}/${mission.objective}`);
+
+          // Verificar si la misión se completó
+          if (missionProgress.progress >= mission.objective) {
+            missionProgress.status = 'completed';
+            missionProgress.completed_at = new Date();
+            console.log(`🏆 [Projects] ¡Misión "${mission.title}" completada!`);
+
+            // 🎁 Otorgar recompensa de XP (magento_points)
+            try {
+              const userProgressRepo = AppDataSource.getRepository(UserProgress);
+              let userProgress = await userProgressRepo.findOne({
+                where: { user_id: projectUserId }
+              });
+
+              if (userProgress) {
+                userProgress.magento_points += mission.xp_reward;
+                userProgress.updated_at = new Date();
+                await userProgressRepo.save(userProgress);
+                console.log(`💰 [Projects] +${mission.xp_reward} puntos otorgados. Total: ${userProgress.magento_points}`);
+              }
+            } catch (xpError) {
+              console.error('❌ [Projects] Error al otorgar XP:', xpError);
+            }
+          } else {
+            // Si no está completada, asegurar que el estado sea in_progress
+            if (missionProgress.status === 'not_started') {
+              missionProgress.status = 'in_progress';
+              missionProgress.starts_at = new Date();
+            }
+          }
+
+          await missionProgressRepo.save(missionProgress);
+        }
+      }
+
+      console.log(`✅ [Projects] Progreso de misiones actualizado para usuario ${projectUserId}`);
+    } catch (missionError) {
+      console.error('❌ [Projects] Error al actualizar progreso de misiones:', missionError);
+      // No fallar la petición principal si hay error en misiones
+    }
+
     res.status(201).json(project);
   } catch (e) {
     console.error(e);
@@ -542,6 +625,89 @@ app.post('/api/certificates', async (req, res) => {
     });
     
     await repo.save(certificate);
+
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO CERTIFICATE
+    try {
+      const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+      const missionRepo = AppDataSource.getRepository(Mission);
+
+      // Buscar todas las misiones activas de tipo Certificate
+      const certificateMissions = await missionRepo
+        .createQueryBuilder('m')
+        .where('m.category = :category', { category: 'Certificate' })
+        .andWhere('m.is_active = :active', { active: true })
+        .getMany();
+
+      console.log(`📋 [Certificates] Encontradas ${certificateMissions.length} misiones de tipo Certificate activas`);
+
+      // Para cada misión de Certificate, actualizar el progreso del usuario
+      for (const mission of certificateMissions) {
+        // Buscar o crear el progreso de esta misión para el usuario
+        let missionProgress = await missionProgressRepo.findOne({
+          where: {
+            user_id: userId,
+            mission_id: mission.mission_id
+          }
+        });
+
+        if (!missionProgress) {
+          // Si no existe, crear el progreso inicial
+          missionProgress = missionProgressRepo.create({
+            user_id: userId,
+            mission_id: mission.mission_id,
+            status: 'in_progress',
+            progress: 0,
+            starts_at: new Date(),
+            ends_at: null
+          });
+          console.log(`✨ [Certificates] Creando progreso inicial para misión "${mission.title}"`);
+        }
+
+        // Incrementar el progreso solo si no está completada
+        if (missionProgress.status !== 'completed') {
+          missionProgress.progress += 1;
+          console.log(`➕ [Certificates] Progreso de misión "${mission.title}": ${missionProgress.progress}/${mission.objective}`);
+
+          // Verificar si la misión se completó
+          if (missionProgress.progress >= mission.objective) {
+            missionProgress.status = 'completed';
+            missionProgress.completed_at = new Date();
+            console.log(`🏆 [Certificates] ¡Misión "${mission.title}" completada!`);
+
+            // 🎁 Otorgar recompensa de XP (magento_points)
+            try {
+              const userProgressRepo = AppDataSource.getRepository(UserProgress);
+              let userProgress = await userProgressRepo.findOne({
+                where: { user_id: userId }
+              });
+
+              if (userProgress) {
+                userProgress.magento_points += mission.xp_reward;
+                userProgress.updated_at = new Date();
+                await userProgressRepo.save(userProgress);
+                console.log(`💰 [Certificates] +${mission.xp_reward} puntos otorgados. Total: ${userProgress.magento_points}`);
+              }
+            } catch (xpError) {
+              console.error('❌ [Certificates] Error al otorgar XP:', xpError);
+            }
+          } else {
+            // Si no está completada, asegurar que el estado sea in_progress
+            if (missionProgress.status === 'not_started') {
+              missionProgress.status = 'in_progress';
+              missionProgress.starts_at = new Date();
+            }
+          }
+
+          await missionProgressRepo.save(missionProgress);
+        }
+      }
+
+      console.log(`✅ [Certificates] Progreso de misiones actualizado para usuario ${userId}`);
+    } catch (missionError) {
+      console.error('❌ [Certificates] Error al actualizar progreso de misiones:', missionError);
+      // No fallar la petición principal si hay error en misiones
+    }
+
     res.status(201).json(certificate);
   } catch (e) {
     console.error(e);

@@ -15,6 +15,17 @@ El servidor incluye un **servicio automatizado** que se ejecuta todos los días 
 
 **Documentación completa:** [`/docs/DAILY_RESET_SERVICE.md`](../docs/DAILY_RESET_SERVICE.md)
 
+### Mission Progress System (Sistema de Progreso de Misiones)
+
+El servidor actualiza automáticamente el progreso de misiones cuando el usuario realiza acciones:
+
+- 📋 **Certificados**: Incrementa progreso de misiones tipo "Certificate" al agregar certificados
+- 📂 **Proyectos**: Incrementa progreso de misiones tipo "Project" al agregar proyectos
+- 🎯 **Trivias**: Incrementa progreso de misiones tipo "Trivia" al completar trivias
+- 🎁 **Recompensas**: Otorga puntos (magento_points) automáticamente al completar misiones
+
+**Documentación completa:** [`/docs/MISSION_PROGRESS_SYSTEM.md`](../docs/MISSION_PROGRESS_SYSTEM.md)
+
 ## 🧪 Testing
 
 ### Probar el Daily Reset Service
@@ -32,6 +43,27 @@ curl http://localhost:4000/api/admin/daily-reset/status
 
 # Ejecutar reset manualmente
 curl -X POST http://localhost:4000/api/admin/daily-reset/execute
+```
+
+### Probar el Mission Progress System
+
+```bash
+# Ejecutar script de prueba
+./test-mission-progress.sh
+```
+
+O manualmente:
+
+```bash
+# Crear un certificado (actualiza misiones de tipo Certificate)
+curl -X POST http://localhost:4000/api/certificates \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test Cert", "description": "Testing", "userId": "user-id"}'
+
+# Crear un proyecto (actualiza misiones de tipo Project)
+curl -X POST http://localhost:4000/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test Project", "description": "Testing", "userId": "user-id"}'
 ```
 
 ## 📦 Instalación
@@ -73,21 +105,35 @@ npm start
 
 ### Trivia
 
-- `POST /api/trivia-attempts` - Guardar intento de trivia
-- `GET /api/trivia-attempts/:userId/stats` - Estadísticas de trivia del usuario
+- `POST /api/trivia-attempts` - Guardar intento de trivia (actualiza badges y misiones de tipo Trivia)
+- `GET /api/trivia-stats/:userId` - Estadísticas de trivia del usuario
+
+### Certificates
+
+- `POST /api/certificates` - Crear certificado (actualiza misiones de tipo Certificate)
+- `GET /api/certificates?userId=:userId` - Listar certificados del usuario
+- `PUT /api/certificates/:id` - Actualizar certificado
+- `DELETE /api/certificates/:id` - Eliminar certificado
+
+### Projects
+
+- `POST /api/projects` - Crear proyecto (actualiza misiones de tipo Project)
+- `GET /api/projects?userId=:userId` - Listar proyectos del usuario
+- `PUT /api/projects/:id` - Actualizar proyecto
+- `DELETE /api/projects/:id` - Eliminar proyecto
+
+### Missions
+
+- `GET /users/:userId/missions-in-progress` - Listar misiones en progreso del usuario
+
+### Badges
+
+- `GET /users/:userId/badges` - Badges del usuario
 
 ### Administración (Daily Reset)
 
 - `GET /api/admin/daily-reset/status` - Estado del servicio de reset
 - `POST /api/admin/daily-reset/execute` - Ejecutar reset manualmente (testing)
-
-### Badges
-
-- `GET /api/users/:userId/badges` - Badges del usuario
-
-### Missions
-
-- `GET /api/users/:userId/missions` - Misiones del usuario
 
 ## 🗄️ Base de Datos
 
