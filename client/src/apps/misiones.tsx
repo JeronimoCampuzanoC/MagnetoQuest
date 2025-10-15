@@ -34,8 +34,11 @@ export default function Misiones() {
     const [items, setItems] = useState<MissionItem[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-  const [magnetoPoints, setMagnetoPoints] = useState<number>(0)
-  const [loadingPoints, setLoadingPoints] = useState(true)
+    const [magnetoPoints, setMagnetoPoints] = useState<number>(0)
+    const [loadingPoints, setLoadingPoints] = useState(true)
+    // Nuevo estado para las insignias
+    const [badgesCount, setBadgesCount] = useState<number>(0)
+    const [loadingBadges, setLoadingBadges] = useState(true)
 
     useEffect(() => {
         const storedUser = AuthService.getCurrentUserId()
@@ -60,34 +63,52 @@ export default function Misiones() {
             }
         }
 
-    const fetchUserProgress = async () => {
-      setLoadingPoints(true)
-      try {
-        if (!userId) throw new Error("No user ID found")
-        const res = await fetch(`/api/users/${userId}/progress`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
-        setMagnetoPoints(data.magento_points || 0)
-      } catch (e: any) {
-        console.error("Error fetching user progress", e)
-        setMagnetoPoints(0)
-      } finally {
-        setLoadingPoints(false)
-      }
-    }
+        const fetchUserProgress = async () => {
+            setLoadingPoints(true)
+            try {
+                if (!userId) throw new Error("No user ID found")
+                const res = await fetch(`/api/users/${userId}/progress`)
+                if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                const data = await res.json()
+                setMagnetoPoints(data.magento_points || 0)
+            } catch (e: any) {
+                console.error("Error fetching user progress", e)
+                setMagnetoPoints(0)
+            } finally {
+                setLoadingPoints(false)
+            }
+        }
+
+        // Nueva función para obtener las insignias
+        const fetchBadgesCount = async () => {
+            setLoadingBadges(true)
+            try {
+                if (!userId) throw new Error("No user ID found")
+                const res = await fetch(`/users/${userId}/badges`)
+                if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                const data = await res.json()
+                setBadgesCount(data.length)
+            } catch (e: any) {
+                console.error("Error fetching badges count", e)
+                setBadgesCount(0)
+            } finally {
+                setLoadingBadges(false)
+            }
+        }
 
         fetchMissions()
-    fetchUserProgress()
+        fetchUserProgress()
+        fetchBadgesCount()
     }, [])
 
-  // Calcular el porcentaje de progreso (tope: 500 puntos)
-  const maxPoints = 500;
-  const progressPercent = Math.min((magnetoPoints / maxPoints) * 100, 100);
+    // Calcular el porcentaje de progreso (tope: 500 puntos)
+    const maxPoints = 500;
+    const progressPercent = Math.min((magnetoPoints / maxPoints) * 100, 100);
 
-  // Calcular los steps de la barra (hitos en 100, 250 y 400 puntos)
-  const step1 = (100 / maxPoints) * 100; // 20%
-  const step2 = (250 / maxPoints) * 100; // 50%
-  const step3 = (400 / maxPoints) * 100; // 80%
+    // Calcular los steps de la barra (hitos en 100, 250 y 400 puntos)
+    const step1 = (100 / maxPoints) * 100; // 20%
+    const step2 = (250 / maxPoints) * 100; // 50%
+    const step3 = (400 / maxPoints) * 100; // 80%
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -97,17 +118,17 @@ export default function Misiones() {
                     <div className={styles.progressBar}>
                         <div>
                             <div className={styles.points}>
-                Has obtenido <b>{loadingPoints ? '...' : magnetoPoints}</b> MagnetoPoints
-                {!loadingPoints && <span style={{ color: '#6b7280', fontSize: '0.9em' }}> / {maxPoints}</span>}
-              </div>
+                                Has obtenido <b>{loadingPoints ? '...' : magnetoPoints}</b> MagnetoPoints
+                                {!loadingPoints && <span style={{ color: '#6b7280', fontSize: '0.9em' }}> / {maxPoints}</span>}
+                            </div>
                             <div style={{ maxWidth: 480, padding: 0, marginTop: 15, marginLeft: 20 }}>
                                 <ProgressBarSteps
-                  percent={progressPercent}
-                  steps={[step1, step2, step3]}
-                  color="#22c55e"
-                  bgColor="#e5e7eb"
-                  height={30}
-                />
+                                    percent={progressPercent}
+                                    steps={[step1, step2, step3]}
+                                    color="#22c55e"
+                                    bgColor="#e5e7eb"
+                                    height={30}
+                                />
                             </div>
                         </div>
                         <div className={styles.divCircle}>
@@ -117,8 +138,10 @@ export default function Misiones() {
                             </div>
                         </div>
                         <div className={styles.divInsignias}>
-                            <h2>Tienes <b>tantas</b> insignias</h2>
-                            <img src="../static/insignia.png" alt="MagnetoPoints" className={styles.mIconInsignia} />
+                            <h2>
+                                Tienes <b>{loadingBadges ? '...' : badgesCount}</b> {badgesCount === 1 ? 'insignia' : 'insignias'}
+                            </h2>
+                            <img src="../static/insignia.png" alt="Insignias" className={styles.mIconInsignia} />
                         </div>
                     </div>
 
