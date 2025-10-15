@@ -79,8 +79,7 @@ POST /api/test/notifications/evening
 ejemplo
 
 ```bash
-curl -X POST http://localhost:4000/api/test/notifications/
-evening
+curl -X POST http://localhost:4000/api/test/notifications/evening
 ```
 
 ## Contenido de los Emails
@@ -141,7 +140,7 @@ Para probar las notificaciones sin esperar a las horas programadas:
 curl -X POST http://localhost:4000/api/test/notifications/morning
 
 # Probar notificación vespertina
-git 
+
 ```
 
 ## Seguridad y Buenas Prácticas

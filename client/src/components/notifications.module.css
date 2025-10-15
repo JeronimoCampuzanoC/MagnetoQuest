@@ -15,7 +15,6 @@
   justify-content: center;
   transition: transform .2s ease, box-shadow .2s ease;
   z-index: 1050;
-  position: relative;
 }
 
 .floatingBtn:hover {

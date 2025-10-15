@@ -7,7 +7,7 @@ import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
 import triviaProxyRoutes from './routes/trivia-proxy.routes';
 import { Certificate } from './entities/Certificate';
-import { Mission } from './entities/Mission';
+import { Mission, MissionCategory } from './entities/Mission';
 import { Badge } from './entities/Badge';
 import { BadgeProgress } from './entities/BadgeProgress';
 import { NotificationLog } from './entities/NotificationLog';
@@ -16,6 +16,8 @@ import { TriviaAttempt } from './entities/TriviaAttempt';
 import { UserMissionProgress } from './entities/UserMissionProgress';
 import { UserProgress } from './entities/UserProgress';
 import { NotificationService } from './services/NotificationService';
+import { dailyResetService } from './services/DailyResetService';
+import { In } from 'typeorm';
 
 dotenv.config();
 
@@ -119,6 +121,79 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
     userProgress.updated_at = new Date();
     await userProgressRepo.save(userProgress);
 
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO TRIVIA
+    try {
+      const missionRepo = AppDataSource.getRepository(Mission);
+      const userMissionRepo = AppDataSource.getRepository(UserMissionProgress);
+      
+      // Buscar misiones activas de tipo Trivia
+      const triviaMissions = await missionRepo.find({
+        where: {
+          category: MissionCategory.TRIVIA,
+          is_active: true
+        }
+      });
+
+      console.log(`📋 [Trivia] Encontradas ${triviaMissions.length} misiones de tipo Trivia activas`);
+
+      for (const mission of triviaMissions) {
+        // Buscar el progreso del usuario para esta misión
+        let missionProgress = await userMissionRepo.findOne({
+          where: {
+            user_id: userId,
+            mission_id: mission.mission_id,
+            status: In(['not_started', 'in_progress'])
+          }
+        });
+
+        if (missionProgress) {
+          console.log(`🎯 [Trivia] Actualizando misión: "${mission.title}" para usuario ${userId}`);
+
+          // Incrementar el progreso solo si no está completada
+          if (missionProgress.status !== 'completed') {
+            missionProgress.progress += 1;
+            console.log(`➕ [Trivia] Progreso de misión "${mission.title}": ${missionProgress.progress}/${mission.objective}`);
+
+            // Verificar si la misión se completó
+            if (missionProgress.progress >= mission.objective) {
+              missionProgress.status = 'completed';
+              missionProgress.completed_at = new Date();
+              console.log(`🏆 [Trivia] ¡Misión "${mission.title}" completada!`);
+
+              // 🎁 Otorgar recompensa de XP (magento_points) de la misión
+              try {
+                // Recargar userProgress para tener la versión más reciente
+                userProgress = await userProgressRepo.findOne({
+                  where: { user_id: userId }
+                });
+
+                if (userProgress) {
+                  userProgress.magento_points += mission.xp_reward;
+                  userProgress.updated_at = new Date();
+                  await userProgressRepo.save(userProgress);
+                  console.log(`💰 [Trivia] +${mission.xp_reward} puntos de misión otorgados. Total: ${userProgress.magento_points}`);
+                }
+              } catch (xpError) {
+                console.error('❌ [Trivia] Error al otorgar XP de misión:', xpError);
+              }
+            } else {
+              // Si no está completada, asegurar que el estado sea in_progress
+              if (missionProgress.status === 'not_started') {
+                missionProgress.status = 'in_progress';
+                missionProgress.starts_at = new Date();
+              }
+            }
+
+            await userMissionRepo.save(missionProgress);
+            console.log(`✅ [Trivia] Progreso de misión guardado`);
+          }
+        }
+      }
+    } catch (missionError) {
+      console.error('⚠️ [Trivia] Error al actualizar progreso de misiones:', missionError);
+      // No fallar la respuesta si hay error en las misiones
+    }
+
     res.json(userProgress);
   } catch (error) {
     console.error('Error updating user progress:', error);
@@ -126,9 +201,44 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
   }
 });
 
-// Endpoint para resetear el has_done_today a false (se ejecutaría diariamente)
-app.post('/api/admin/reset-daily-progress', async (req, res) => {
+// ======================================
+// ENDPOINTS DE ADMINISTRACIÓN DEL RESET DIARIO
+// ======================================
+
+// Endpoint para ejecutar el reset diario manualmente (útil para testing/debugging)
+app.post('/api/admin/daily-reset/execute', async (_req, res) => {
   try {
+    await dailyResetService.performDailyReset();
+    res.json({ 
+      message: 'Reset diario ejecutado correctamente',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error ejecutando reset diario manual:', error);
+    res.status(500).json({ error: 'Error al ejecutar el reset diario' });
+  }
+});
+
+// Endpoint para obtener el estado del servicio de reset diario
+app.get('/api/admin/daily-reset/status', (_req, res) => {
+  try {
+    const status = dailyResetService.getStatus();
+    res.json({
+      ...status,
+      serverTime: new Date().toISOString(),
+      timezone: 'America/Bogota'
+    });
+  } catch (error) {
+    console.error('Error obteniendo estado del servicio:', error);
+    res.status(500).json({ error: 'Error al obtener el estado' });
+  }
+});
+
+// Endpoint para resetear el has_done_today a false (DEPRECATED - usar /api/admin/daily-reset/execute)
+app.post('/api/admin/reset-daily-progress', async (_req, res) => {
+  try {
+    console.log('⚠️  [DEPRECATED] Este endpoint está deprecado. Usa /api/admin/daily-reset/execute en su lugar');
+    
     const userProgressRepo = AppDataSource.getRepository(UserProgress);
     
     await userProgressRepo.update(
@@ -136,7 +246,10 @@ app.post('/api/admin/reset-daily-progress', async (req, res) => {
       { has_done_today: false }
     );
 
-    res.json({ message: 'Daily progress reset completed' });
+    res.json({ 
+      message: 'Daily progress reset completed (DEPRECATED - usa /api/admin/daily-reset/execute)',
+      warning: 'Este endpoint está deprecado y será removido en futuras versiones'
+    });
   } catch (error) {
     console.error('Error resetting daily progress:', error);
     res.status(500).json({ error: 'Failed to reset daily progress' });
@@ -258,24 +371,44 @@ app.put('/api/users/:userId/notifications/:notificationId/read', async (req, res
   }
 });
 
-
-// LISTAR misiones
+// LISTAR MISIONES EN PROGRESO DE UN USUARIO
 app.get('/users/:userId/missions-in-progress', async (req, res) => {
   const { userId } = req.params;
-  console.log('Listando misiones en progreso para userId=', userId);
-  const qb = AppDataSource.getRepository(UserMissionProgress)
-    .createQueryBuilder('ump')
-    .innerJoin('ump.mission', 'm')
-    .select([
-      'm.mission_id AS id',
-      'm.title       AS text',
-      "CASE WHEN ump.status = 'in_progress' THEN TRUE ELSE FALSE END AS active",
-    ])
-    .where('ump.user_id = :userId', { userId })
-    .orderBy('m.created_at', 'DESC');
+  console.log('Listando misiones para userId=', userId);
+  try {
+    const qb = AppDataSource.getRepository(UserMissionProgress)
+      .createQueryBuilder('ump')
+      .innerJoin('ump.mission', 'm')
+      .select([
+        'm.mission_id',
+        'm.title',
+        'm.description',
+        'm.category',
+        'ump.progress',
+        'm.objective',
+        'ump.ends_at',
+        'ump.status',
+      ])
+      .where('ump.user_id = :userId', { userId });
 
-  const result = await qb.getRawMany(); // ya sale con { id, text, active }
-  res.json(result);
+    const result = await qb.getRawMany();
+
+    const mapped = result.map(r => ({
+      id: r.m_mission_id,
+      title: r.m_title,
+      description: r.m_description,
+      category: r.m_category,
+      progress: r.ump_progress,
+      objective: r.m_objective,
+      ends_at: r.ump_ends_at,
+      active: r.ump_status === 'completed',  // ✅ true = completada
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error('Error listing missions for user', userId, err);
+    res.status(500).json({ error: 'DB error' });
+  }
 });
 
 
@@ -284,13 +417,13 @@ app.get('/users/:userId/badges', async (req, res) => {
   const { userId } = req.params;
   console.log('Listando insignias para userId=', userId);
   try {
-    // Badge no tiene relación directa a AppUser; la relación viene a través de badge_progress
     const qb = AppDataSource.getRepository(BadgeProgress)
       .createQueryBuilder('bp')
       .innerJoin('bp.badge', 'b')
       .select([
         'b.badge_name AS badge_name',
         'b.badge_score AS badge_score',
+        'b.category AS category',  // ← Agregar esto
       ])
       .where('bp.user_id = :userId', { userId })
       .orderBy('b.badge_name', 'ASC');
@@ -360,6 +493,89 @@ app.post('/api/projects', async (req, res) => {
     }
     
     await repo.save(project);
+
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO PROJECT
+    try {
+      const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+      const missionRepo = AppDataSource.getRepository(Mission);
+
+      // Buscar todas las misiones activas de tipo Project
+      const projectMissions = await missionRepo
+        .createQueryBuilder('m')
+        .where('m.category = :category', { category: 'Project' })
+        .andWhere('m.is_active = :active', { active: true })
+        .getMany();
+
+      console.log(`📂 [Projects] Encontradas ${projectMissions.length} misiones de tipo Project activas`);
+
+      // Para cada misión de Project, actualizar el progreso del usuario
+      for (const mission of projectMissions) {
+        // Buscar o crear el progreso de esta misión para el usuario
+        let missionProgress = await missionProgressRepo.findOne({
+          where: {
+            user_id: projectUserId,
+            mission_id: mission.mission_id
+          }
+        });
+
+        if (!missionProgress) {
+          // Si no existe, crear el progreso inicial
+          missionProgress = missionProgressRepo.create({
+            user_id: projectUserId,
+            mission_id: mission.mission_id,
+            status: 'in_progress',
+            progress: 0,
+            starts_at: new Date(),
+            ends_at: null
+          });
+          console.log(`✨ [Projects] Creando progreso inicial para misión "${mission.title}"`);
+        }
+
+        // Incrementar el progreso solo si no está completada
+        if (missionProgress.status !== 'completed') {
+          missionProgress.progress += 1;
+          console.log(`➕ [Projects] Progreso de misión "${mission.title}": ${missionProgress.progress}/${mission.objective}`);
+
+          // Verificar si la misión se completó
+          if (missionProgress.progress >= mission.objective) {
+            missionProgress.status = 'completed';
+            missionProgress.completed_at = new Date();
+            console.log(`🏆 [Projects] ¡Misión "${mission.title}" completada!`);
+
+            // 🎁 Otorgar recompensa de XP (magento_points)
+            try {
+              const userProgressRepo = AppDataSource.getRepository(UserProgress);
+              let userProgress = await userProgressRepo.findOne({
+                where: { user_id: projectUserId }
+              });
+
+              if (userProgress) {
+                userProgress.magento_points += mission.xp_reward;
+                userProgress.updated_at = new Date();
+                await userProgressRepo.save(userProgress);
+                console.log(`💰 [Projects] +${mission.xp_reward} puntos otorgados. Total: ${userProgress.magento_points}`);
+              }
+            } catch (xpError) {
+              console.error('❌ [Projects] Error al otorgar XP:', xpError);
+            }
+          } else {
+            // Si no está completada, asegurar que el estado sea in_progress
+            if (missionProgress.status === 'not_started') {
+              missionProgress.status = 'in_progress';
+              missionProgress.starts_at = new Date();
+            }
+          }
+
+          await missionProgressRepo.save(missionProgress);
+        }
+      }
+
+      console.log(`✅ [Projects] Progreso de misiones actualizado para usuario ${projectUserId}`);
+    } catch (missionError) {
+      console.error('❌ [Projects] Error al actualizar progreso de misiones:', missionError);
+      // No fallar la petición principal si hay error en misiones
+    }
+
     res.status(201).json(project);
   } catch (e) {
     console.error(e);
@@ -503,6 +719,89 @@ app.post('/api/certificates', async (req, res) => {
     });
     
     await repo.save(certificate);
+
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO CERTIFICATE
+    try {
+      const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+      const missionRepo = AppDataSource.getRepository(Mission);
+
+      // Buscar todas las misiones activas de tipo Certificate
+      const certificateMissions = await missionRepo
+        .createQueryBuilder('m')
+        .where('m.category = :category', { category: 'Certificate' })
+        .andWhere('m.is_active = :active', { active: true })
+        .getMany();
+
+      console.log(`📋 [Certificates] Encontradas ${certificateMissions.length} misiones de tipo Certificate activas`);
+
+      // Para cada misión de Certificate, actualizar el progreso del usuario
+      for (const mission of certificateMissions) {
+        // Buscar o crear el progreso de esta misión para el usuario
+        let missionProgress = await missionProgressRepo.findOne({
+          where: {
+            user_id: userId,
+            mission_id: mission.mission_id
+          }
+        });
+
+        if (!missionProgress) {
+          // Si no existe, crear el progreso inicial
+          missionProgress = missionProgressRepo.create({
+            user_id: userId,
+            mission_id: mission.mission_id,
+            status: 'in_progress',
+            progress: 0,
+            starts_at: new Date(),
+            ends_at: null
+          });
+          console.log(`✨ [Certificates] Creando progreso inicial para misión "${mission.title}"`);
+        }
+
+        // Incrementar el progreso solo si no está completada
+        if (missionProgress.status !== 'completed') {
+          missionProgress.progress += 1;
+          console.log(`➕ [Certificates] Progreso de misión "${mission.title}": ${missionProgress.progress}/${mission.objective}`);
+
+          // Verificar si la misión se completó
+          if (missionProgress.progress >= mission.objective) {
+            missionProgress.status = 'completed';
+            missionProgress.completed_at = new Date();
+            console.log(`🏆 [Certificates] ¡Misión "${mission.title}" completada!`);
+
+            // 🎁 Otorgar recompensa de XP (magento_points)
+            try {
+              const userProgressRepo = AppDataSource.getRepository(UserProgress);
+              let userProgress = await userProgressRepo.findOne({
+                where: { user_id: userId }
+              });
+
+              if (userProgress) {
+                userProgress.magento_points += mission.xp_reward;
+                userProgress.updated_at = new Date();
+                await userProgressRepo.save(userProgress);
+                console.log(`💰 [Certificates] +${mission.xp_reward} puntos otorgados. Total: ${userProgress.magento_points}`);
+              }
+            } catch (xpError) {
+              console.error('❌ [Certificates] Error al otorgar XP:', xpError);
+            }
+          } else {
+            // Si no está completada, asegurar que el estado sea in_progress
+            if (missionProgress.status === 'not_started') {
+              missionProgress.status = 'in_progress';
+              missionProgress.starts_at = new Date();
+            }
+          }
+
+          await missionProgressRepo.save(missionProgress);
+        }
+      }
+
+      console.log(`✅ [Certificates] Progreso de misiones actualizado para usuario ${userId}`);
+    } catch (missionError) {
+      console.error('❌ [Certificates] Error al actualizar progreso de misiones:', missionError);
+      // No fallar la petición principal si hay error en misiones
+    }
+
     res.status(201).json(certificate);
   } catch (e) {
     console.error(e);
@@ -580,6 +879,162 @@ app.delete('/api/certificates/:id', async (req, res) => {
   }
 });
 
+// ======================================
+// ENDPOINTS DE RESUME (CV)
+// ======================================
+
+// OBTENER resume de un usuario
+app.get('/api/users/:userId/resume', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const repo = AppDataSource.getRepository(Resume);
+    
+    const resume = await repo.findOne({
+      where: { id_app_user: userId }
+    });
+    
+    if (!resume) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+    
+    res.json(resume);
+  } catch (e) {
+    console.error('Error fetching resume:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// CREAR o ACTUALIZAR resume de un usuario
+app.put('/api/users/:userId/resume', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { description, experience, courses, projects, languages, references_cv } = req.body ?? {};
+    
+    const repo = AppDataSource.getRepository(Resume);
+    
+    // Buscar si ya existe un resume para este usuario
+    let resume = await repo.findOne({
+      where: { id_app_user: userId }
+    });
+    
+    if (resume) {
+      // ACTUALIZAR: solo los campos que se envían (no null/undefined)
+      if (description !== undefined) resume.description = description?.trim() || null;
+      if (experience !== undefined) resume.experience = experience?.trim() || null;
+      if (courses !== undefined) resume.courses = courses?.trim() || null;
+      if (projects !== undefined) resume.projects = projects?.trim() || null;
+      if (languages !== undefined) resume.languages = languages?.trim() || null;
+      if (references_cv !== undefined) resume.references_cv = references_cv?.trim() || null;
+      
+      await repo.save(resume);
+      console.log(`✅ Resume actualizado para usuario ${userId}`);
+    } else {
+      // CREAR: nuevo resume
+      resume = repo.create({
+        id_app_user: userId,
+        description: description?.trim() || null,
+        experience: experience?.trim() || null,
+        courses: courses?.trim() || null,
+        projects: projects?.trim() || null,
+        languages: languages?.trim() || null,
+        references_cv: references_cv?.trim() || null
+      });
+      
+      await repo.save(resume);
+      console.log(`✅ Resume creado para usuario ${userId}`);
+    }
+
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO CV
+    try {
+      const missionRepo = AppDataSource.getRepository(Mission);
+      const userMissionRepo = AppDataSource.getRepository(UserMissionProgress);
+      
+      // Buscar misiones activas de tipo CV
+      const cvMissions = await missionRepo.find({
+        where: {
+          category: MissionCategory.CV,
+          is_active: true
+        }
+      });
+
+      console.log(`📋 Encontradas ${cvMissions.length} misiones de tipo CV activas`);
+
+      for (const mission of cvMissions) {
+        // Buscar el progreso del usuario para esta misión
+        const userMission = await userMissionRepo.findOne({
+          where: {
+            user_id: userId,
+            mission_id: mission.mission_id,
+            status: In(['not_started', 'in_progress'])
+          }
+        });
+
+        if (userMission) {
+          console.log(`🎯 Actualizando misión CV: ${mission.title} para usuario ${userId}`);
+          
+          // Calcular el progreso basado en cuántos campos están completos
+          const totalFields = 6; // description, experience, courses, projects, languages, references_cv
+          let filledFields = 0;
+          if (resume.description) filledFields++;
+          if (resume.experience) filledFields++;
+          if (resume.courses) filledFields++;
+          if (resume.projects) filledFields++;
+          if (resume.languages) filledFields++;
+          if (resume.references_cv) filledFields++;
+
+          // El progreso puede ser el porcentaje de campos completados
+          // o simplemente incrementar en 1 cada vez que se actualiza el CV
+          const newProgress = Math.min(userMission.progress + 1, mission.objective);
+          
+          userMission.progress = newProgress;
+          userMission.status = 'in_progress';
+
+          // Verificar si se completó la misión
+          if (userMission.progress >= mission.objective) {
+            userMission.status = 'completed';
+            userMission.completed_at = new Date();
+            
+            console.log(`🎉 ¡Misión CV completada! "${mission.title}"`);
+            console.log(`🏆 Recompensa: +${mission.xp_reward} XP`);
+
+            // Otorgar XP al usuario
+            const userProgressRepo = AppDataSource.getRepository(UserProgress);
+            let userProgress = await userProgressRepo.findOne({
+              where: { user_id: userId }
+            });
+
+            if (!userProgress) {
+              userProgress = userProgressRepo.create({
+                user_id: userId,
+                magento_points: mission.xp_reward,
+                streak: 0,
+                has_done_today: false
+              });
+            } else {
+              userProgress.magento_points += mission.xp_reward;
+              userProgress.updated_at = new Date();
+            }
+
+            await userProgressRepo.save(userProgress);
+            console.log(`✅ XP otorgados al usuario ${userId}: +${mission.xp_reward} (Total: ${userProgress.magento_points})`);
+          }
+
+          await userMissionRepo.save(userMission);
+          console.log(`✅ Progreso de misión CV actualizado: ${userMission.progress}/${mission.objective}`);
+        }
+      }
+    } catch (missionError) {
+      console.error('⚠️ Error al actualizar progreso de misiones CV:', missionError);
+      // No fallar la respuesta si hay error en las misiones
+    }
+
+    res.json(resume);
+  } catch (e) {
+    console.error('Error updating/creating resume:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 // 👇 NUEVA RUTA PROXY PARA TRIVIA
 app.use('/api/trivia', triviaProxyRoutes);
 
@@ -604,6 +1059,42 @@ app.post('/api/trivia-attempts', async (req, res) => {
     });
 
     await repo.save(attempt);
+
+    // 🎯 ACTUALIZAR PROGRESO DE BADGES DE TIPO TRIVIA
+    try {
+      const badgeProgressRepo = AppDataSource.getRepository(BadgeProgress);
+      
+      // Buscar todos los badge_progress del usuario que tengan badge con category = 'Trivia'
+      // y donde el progress actual sea menor que el quantity del badge
+      const triviaBadgeProgresses = await badgeProgressRepo
+        .createQueryBuilder('bp')
+        .innerJoinAndSelect('bp.badge', 'badge')
+        .where('bp.user_id = :userId', { userId: user_id })
+        .andWhere('badge.category = :category', { category: 'Trivia' })
+        .andWhere('bp.progress < badge.quantity')
+        .andWhere('bp.awarded_at IS NULL') // Solo badges no completados
+        .getMany();
+
+      console.log(`📊 Encontrados ${triviaBadgeProgresses.length} badges de Trivia para actualizar`);
+
+      // Incrementar el progress de cada badge encontrado
+      for (const badgeProgress of triviaBadgeProgresses) {
+        badgeProgress.progress += 1;
+        
+        // Si alcanzó la cantidad requerida, marcar como completado
+        if (badgeProgress.progress >= badgeProgress.badge.quantity!) {
+          badgeProgress.awarded_at = new Date();
+          console.log(`🏆 Badge "${badgeProgress.badge.badge_name}" completado para usuario ${user_id}`);
+        }
+        
+        await badgeProgressRepo.save(badgeProgress);
+        console.log(`✅ Progress actualizado para badge "${badgeProgress.badge.badge_name}": ${badgeProgress.progress}/${badgeProgress.badge.quantity}`);
+      }
+    } catch (badgeError) {
+      console.error('❌ Error al actualizar progreso de badges:', badgeError);
+      // No fallar la petición principal si hay error en badges
+    }
+
     res.status(201).json(attempt);
   } catch (e) {
     console.error('Error al guardar intento de trivia:', e);
@@ -688,6 +1179,10 @@ interface TypeORMInitError {
 AppDataSource.initialize()
   .then(((): void => {
     console.log('✅ TypeORM conectado');
+    
+    // 🔄 Iniciar el servicio de reset diario
+    dailyResetService.start();
+    
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)
   .catch(((err: unknown): void => {

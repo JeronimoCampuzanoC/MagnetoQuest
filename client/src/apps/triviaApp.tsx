@@ -228,6 +228,27 @@ export default function TriviaApp() {
       }
 
       console.log('✅ Intento de trivia guardado correctamente');
+
+      // 🎯 Actualizar el progreso diario del usuario (streak y has_done_today)
+      try {
+        const progressResponse = await fetch(`http://localhost:4000/api/users/${currentUserId}/progress/trivia-completed`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!progressResponse.ok) {
+          throw new Error('Error al actualizar el progreso del usuario');
+        }
+
+        const updatedProgress = await progressResponse.json();
+        console.log('✅ Progreso de usuario actualizado:', updatedProgress);
+        console.log(`🔥 Streak actual: ${updatedProgress.streak} días`);
+      } catch (progressError) {
+        console.error('Error al actualizar progreso del usuario:', progressError);
+        // No fallar la petición principal si hay error en el progreso
+      }
     } catch (error) {
       console.error('Error al guardar el intento:', error);
       setError('Error al guardar los resultados');
