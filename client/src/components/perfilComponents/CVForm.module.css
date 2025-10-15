@@ -1,0 +1,139 @@
+.cvFormContainer {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.buttonContainer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.saveButton {
+  min-width: 150px;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.infoBox {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2);
+}
+
+.infoBox h6 {
+  font-weight: 700;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.infoBox ul {
+  margin-bottom: 0;
+  padding-left: 1.5rem;
+}
+
+.infoBox li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.infoBox li:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .cvFormContainer {
+    padding: 1rem;
+  }
+
+  .buttonContainer {
+    justify-content: stretch;
+  }
+
+  .saveButton {
+    width: 100%;
+  }
+
+  .infoBox {
+    padding: 1rem;
+  }
+}
+
+/* Form styling improvements */
+.cvFormContainer label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.cvFormContainer .form-control {
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.cvFormContainer .form-control:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.cvFormContainer small.text-muted {
+  display: block;
+  margin-top: 0.5rem;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.cvFormContainer .form-group {
+  margin-bottom: 1.5rem;
+}
+
+/* Alert animations */
+.cvFormContainer .alert {
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

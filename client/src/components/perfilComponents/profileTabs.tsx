@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import styles from "./profileTabs.module.css";
 import ProjectCertificate from "./ProjectCertificate";
 import PerformanceTrivia from "./PerformanceTrivia";
+import CVForm from "./CVForm";
 import {
   TabContent, TabPane,
   Card, CardBody
@@ -55,9 +56,7 @@ export default function ProfileTabs() {
         <TabPane tabId="cv">
           <Card>
             <CardBody>
-              <h5 className="mb-3">Diseño de mi hoja de vida</h5>
-              {/* constructor/preview del CV */}
-              <p>Selecciona plantilla, colores, exporta PDF…</p>
+              <CVForm />
             </CardBody>
           </Card>
         </TabPane>
@@ -77,7 +76,7 @@ export default function ProfileTabs() {
             <CardBody>
               <h5 className="mb-3"></h5>
               {/* Componente que maneja los tabs internos de proyectos/certificados */}
-              <PerformanceTrivia/>
+              <PerformanceTrivia />
             </CardBody>
           </Card>
         </TabPane>

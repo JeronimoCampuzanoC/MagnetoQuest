@@ -7,7 +7,7 @@ import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
 import triviaProxyRoutes from './routes/trivia-proxy.routes';
 import { Certificate } from './entities/Certificate';
-import { Mission } from './entities/Mission';
+import { Mission, MissionCategory } from './entities/Mission';
 import { Badge } from './entities/Badge';
 import { BadgeProgress } from './entities/BadgeProgress';
 import { NotificationLog } from './entities/NotificationLog';
@@ -17,6 +17,7 @@ import { UserMissionProgress } from './entities/UserMissionProgress';
 import { UserProgress } from './entities/UserProgress';
 import { NotificationService } from './services/NotificationService';
 import { dailyResetService } from './services/DailyResetService';
+import { In } from 'typeorm';
 
 dotenv.config();
 
@@ -781,6 +782,162 @@ app.delete('/api/certificates/:id', async (req, res) => {
     res.json({ message: 'Certificado eliminado' });
   } catch (e) {
     console.error(e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// ======================================
+// ENDPOINTS DE RESUME (CV)
+// ======================================
+
+// OBTENER resume de un usuario
+app.get('/api/users/:userId/resume', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const repo = AppDataSource.getRepository(Resume);
+    
+    const resume = await repo.findOne({
+      where: { id_app_user: userId }
+    });
+    
+    if (!resume) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+    
+    res.json(resume);
+  } catch (e) {
+    console.error('Error fetching resume:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// CREAR o ACTUALIZAR resume de un usuario
+app.put('/api/users/:userId/resume', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { description, experience, courses, projects, languages, references_cv } = req.body ?? {};
+    
+    const repo = AppDataSource.getRepository(Resume);
+    
+    // Buscar si ya existe un resume para este usuario
+    let resume = await repo.findOne({
+      where: { id_app_user: userId }
+    });
+    
+    if (resume) {
+      // ACTUALIZAR: solo los campos que se envían (no null/undefined)
+      if (description !== undefined) resume.description = description?.trim() || null;
+      if (experience !== undefined) resume.experience = experience?.trim() || null;
+      if (courses !== undefined) resume.courses = courses?.trim() || null;
+      if (projects !== undefined) resume.projects = projects?.trim() || null;
+      if (languages !== undefined) resume.languages = languages?.trim() || null;
+      if (references_cv !== undefined) resume.references_cv = references_cv?.trim() || null;
+      
+      await repo.save(resume);
+      console.log(`✅ Resume actualizado para usuario ${userId}`);
+    } else {
+      // CREAR: nuevo resume
+      resume = repo.create({
+        id_app_user: userId,
+        description: description?.trim() || null,
+        experience: experience?.trim() || null,
+        courses: courses?.trim() || null,
+        projects: projects?.trim() || null,
+        languages: languages?.trim() || null,
+        references_cv: references_cv?.trim() || null
+      });
+      
+      await repo.save(resume);
+      console.log(`✅ Resume creado para usuario ${userId}`);
+    }
+
+    // 🎯 ACTUALIZAR PROGRESO DE MISIONES DE TIPO CV
+    try {
+      const missionRepo = AppDataSource.getRepository(Mission);
+      const userMissionRepo = AppDataSource.getRepository(UserMissionProgress);
+      
+      // Buscar misiones activas de tipo CV
+      const cvMissions = await missionRepo.find({
+        where: {
+          category: MissionCategory.CV,
+          is_active: true
+        }
+      });
+
+      console.log(`📋 Encontradas ${cvMissions.length} misiones de tipo CV activas`);
+
+      for (const mission of cvMissions) {
+        // Buscar el progreso del usuario para esta misión
+        const userMission = await userMissionRepo.findOne({
+          where: {
+            user_id: userId,
+            mission_id: mission.mission_id,
+            status: In(['not_started', 'in_progress'])
+          }
+        });
+
+        if (userMission) {
+          console.log(`🎯 Actualizando misión CV: ${mission.title} para usuario ${userId}`);
+          
+          // Calcular el progreso basado en cuántos campos están completos
+          const totalFields = 6; // description, experience, courses, projects, languages, references_cv
+          let filledFields = 0;
+          if (resume.description) filledFields++;
+          if (resume.experience) filledFields++;
+          if (resume.courses) filledFields++;
+          if (resume.projects) filledFields++;
+          if (resume.languages) filledFields++;
+          if (resume.references_cv) filledFields++;
+
+          // El progreso puede ser el porcentaje de campos completados
+          // o simplemente incrementar en 1 cada vez que se actualiza el CV
+          const newProgress = Math.min(userMission.progress + 1, mission.objective);
+          
+          userMission.progress = newProgress;
+          userMission.status = 'in_progress';
+
+          // Verificar si se completó la misión
+          if (userMission.progress >= mission.objective) {
+            userMission.status = 'completed';
+            userMission.completed_at = new Date();
+            
+            console.log(`🎉 ¡Misión CV completada! "${mission.title}"`);
+            console.log(`🏆 Recompensa: +${mission.xp_reward} XP`);
+
+            // Otorgar XP al usuario
+            const userProgressRepo = AppDataSource.getRepository(UserProgress);
+            let userProgress = await userProgressRepo.findOne({
+              where: { user_id: userId }
+            });
+
+            if (!userProgress) {
+              userProgress = userProgressRepo.create({
+                user_id: userId,
+                magento_points: mission.xp_reward,
+                streak: 0,
+                has_done_today: false
+              });
+            } else {
+              userProgress.magento_points += mission.xp_reward;
+              userProgress.updated_at = new Date();
+            }
+
+            await userProgressRepo.save(userProgress);
+            console.log(`✅ XP otorgados al usuario ${userId}: +${mission.xp_reward} (Total: ${userProgress.magento_points})`);
+          }
+
+          await userMissionRepo.save(userMission);
+          console.log(`✅ Progreso de misión CV actualizado: ${userMission.progress}/${mission.objective}`);
+        }
+      }
+    } catch (missionError) {
+      console.error('⚠️ Error al actualizar progreso de misiones CV:', missionError);
+      // No fallar la respuesta si hay error en las misiones
+    }
+
+    res.json(resume);
+  } catch (e) {
+    console.error('Error updating/creating resume:', e);
     res.status(500).json({ error: 'DB error' });
   }
 });
