@@ -194,36 +194,70 @@ INSERT INTO certificate (user_id, title, description, image, validation_link) VA
     ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9), 'Cert DevOps', 'CI/CD', NULL, 'https://cert/10');
 
 -- =========================
--- SEED: BADGE (11)
+-- SEED: BADGE (15)
 -- =========================
 INSERT INTO badge (badge_name, badge_score, category, parameter, quantity) VALUES
+    -- Insignias de CV (Onboarding)
     ('Onboarding 10%', 10, 'CV', 'perfil_completo', 1),
     ('Onboarding 50%', 50, 'CV', 'perfil_completo', 1),
     ('Onboarding 100%', 100, 'CV', 'perfil_completo', 1),
-    ('Primer Proyecto', 20, 'MagnetoPoints', 'proyectos', 1),
-    ('5 Proyectos', 60, 'MagnetoPoints', 'proyectos', 5),
-    ('10 Proyectos', 120, 'MagnetoPoints', 'proyectos', 10),
-    ('Primer Cert', 15, 'MagnetoPoints', 'certificados', 1),
-    ('3 Certs', 45, 'MagnetoPoints', 'certificados', 3),
+    
+    -- Insignias de MagnetoPoints (Metas de puntos)
+    ('Iniciado', 25, 'MagnetoPoints', 'puntos_totales', 100),
+    ('En Camino', 50, 'MagnetoPoints', 'puntos_totales', 300),
+    ('Experto', 100, 'MagnetoPoints', 'puntos_totales', 500),
+    
+    -- Insignias de Trivia
     ('Primer Intento', 10, 'Trivia', 'intentos_trivia', 1),
-    ('Dos Trivias', 20, 'Trivia', 'trivia_completada', 2),
-    ('Trivia Master', 200, 'Trivia', 'intentos_trivia', 50);
+    ('Cinco Trivias', 25, 'Trivia', 'intentos_trivia', 5),
+    ('Diez Trivias', 50, 'Trivia', 'intentos_trivia', 10),
+    ('Veinte Trivias', 100, 'Trivia', 'intentos_trivia', 20),
+    ('Trivia Master', 200, 'Trivia', 'intentos_trivia', 50),
+    
+    -- Insignias de Racha (Streak)
+    ('Racha Inicial', 15, 'Streak', 'racha_dias', 10),
+    ('Racha Consistente', 75, 'Streak', 'racha_dias', 50),
+    ('Racha Anual', 500, 'Streak', 'racha_dias', 360);
 
 -- =========================
--- SEED: BADGE_PROGRESS (10)
+-- SEED: BADGE_PROGRESS (15)
 --  (pares únicos user_id/badge_id)
 -- =========================
 INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at) VALUES 
+    -- Ana Torres: Primer Intento trivia + Iniciado (100 puntos)
     ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT badge_id FROM badge WHERE badge_name = 'Primer Intento'), 1, NOW() - INTERVAL '10 days'),
-    ((SELECT id_app_user FROM app_user WHERE name = 'Luis Pérez'), (SELECT badge_id FROM badge WHERE badge_name = 'Dos Trivias'), 1, NULL),
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT badge_id FROM badge WHERE badge_name = 'Iniciado'), 1, NOW() - INTERVAL '9 days'),
+    
+    -- Luis Pérez: Cinco Trivias en progreso
+    ((SELECT id_app_user FROM app_user WHERE name = 'Luis Pérez'), (SELECT badge_id FROM badge WHERE badge_name = 'Cinco Trivias'), 3, NULL),
+    
+    -- María Gómez: Primer Intento + En Camino (300 puntos)
     ((SELECT id_app_user FROM app_user WHERE name = 'María Gómez'), (SELECT badge_id FROM badge WHERE badge_name = 'Primer Intento'), 1, NOW() - INTERVAL '8 days'),
-    ((SELECT id_app_user FROM app_user WHERE name = 'María Gómez'), (SELECT badge_id FROM badge WHERE badge_name = 'Dos Trivias'), 0, NULL),
+    ((SELECT id_app_user FROM app_user WHERE name = 'María Gómez'), (SELECT badge_id FROM badge WHERE badge_name = 'En Camino'), 1, NOW() - INTERVAL '7 days'),
+    
+    -- Carlos Díaz: Trivia Master en progreso + Racha Inicial
     ((SELECT id_app_user FROM app_user WHERE name = 'Carlos Díaz'), (SELECT badge_id FROM badge WHERE badge_name = 'Trivia Master'), 25, NULL),
-    ((SELECT id_app_user FROM app_user WHERE name = 'Sofía Rojas'), (SELECT badge_id FROM badge WHERE badge_name = 'Dos Trivias'), 2, NOW() - INTERVAL '5 days'),
-    ((SELECT id_app_user FROM app_user WHERE name = 'Jorge Herrera'), (SELECT badge_id FROM badge WHERE badge_name = 'Primer Intento'), 0, NULL),
+    ((SELECT id_app_user FROM app_user WHERE name = 'Carlos Díaz'), (SELECT badge_id FROM badge WHERE badge_name = 'Racha Inicial'), 1, NOW() - INTERVAL '6 days'),
+    
+    -- Sofía Rojas: Cinco Trivias completada
+    ((SELECT id_app_user FROM app_user WHERE name = 'Sofía Rojas'), (SELECT badge_id FROM badge WHERE badge_name = 'Cinco Trivias'), 5, NOW() - INTERVAL '5 days'),
+    
+    -- Jorge Herrera: Iniciado en progreso
+    ((SELECT id_app_user FROM app_user WHERE name = 'Jorge Herrera'), (SELECT badge_id FROM badge WHERE badge_name = 'Iniciado'), 0, NULL),
+    
+    -- Valentina Ruiz: Trivia Master en progreso + Racha Consistente en progreso
     ((SELECT id_app_user FROM app_user WHERE name = 'Valentina Ruiz'), (SELECT badge_id FROM badge WHERE badge_name = 'Trivia Master'), 48, NULL),
-    ((SELECT id_app_user FROM app_user WHERE name = 'Andrés Ramírez'), (SELECT badge_id FROM badge WHERE badge_name = 'Dos Trivias'), 1, NULL),
-    ((SELECT id_app_user FROM app_user WHERE name = 'Camila López'), (SELECT badge_id FROM badge WHERE badge_name = 'Trivia Master'), 10, NULL);
+    ((SELECT id_app_user FROM app_user WHERE name = 'Valentina Ruiz'), (SELECT badge_id FROM badge WHERE badge_name = 'Racha Consistente'), 15, NULL),
+    
+    -- Andrés Ramírez: Cinco Trivias en progreso
+    ((SELECT id_app_user FROM app_user WHERE name = 'Andrés Ramírez'), (SELECT badge_id FROM badge WHERE badge_name = 'Cinco Trivias'), 4, NULL),
+    
+    -- Camila López: Diez Trivias completada + En Camino
+    ((SELECT id_app_user FROM app_user WHERE name = 'Camila López'), (SELECT badge_id FROM badge WHERE badge_name = 'Diez Trivias'), 10, NOW() - INTERVAL '3 days'),
+    ((SELECT id_app_user FROM app_user WHERE name = 'Camila López'), (SELECT badge_id FROM badge WHERE badge_name = 'En Camino'), 1, NOW() - INTERVAL '2 days'),
+    
+    -- Diego Castillo: Racha Inicial en progreso
+    ((SELECT id_app_user FROM app_user WHERE name = 'Diego Castillo'), (SELECT badge_id FROM badge WHERE badge_name = 'Racha Inicial'), 0, NULL);
 
 -- =========================
 -- SEED: MISSION (10)
