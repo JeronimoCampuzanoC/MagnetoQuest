@@ -19,6 +19,13 @@ const categoryConfig: Record<CategoryType, { label: string; emoji: string; class
   CV: { label: 'CV', emoji: '📄', className: styles.categoryCV }
 };
 
+// Configuración por defecto para categorías desconocidas
+const defaultConfig = { 
+  label: 'Otro', 
+  emoji: '🏅', 
+  className: styles.categoryDefault 
+};
+
 const BadgesOffCanvas: React.FC = () => {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen(v => !v);
@@ -48,11 +55,18 @@ const BadgesOffCanvas: React.FC = () => {
           category: CategoryType;
         }> = await res.json();
         
-        setItems(data.map(d => ({ 
-          badge_name: d.badge_name, 
-          badge_score: d.badge_score,
-          category: d.category
-        })));
+        setItems(data.map(d => {
+          // Debug: ver qué categorías llegan del backend
+          if (!categoryConfig[d.category]) {
+            console.warn(`Categoría desconocida recibida: "${d.category}"`);
+          }
+          
+          return { 
+            badge_name: d.badge_name, 
+            badge_score: d.badge_score,
+            category: d.category
+          };
+        }));
         setError(null);
       } catch (e: any) {
         console.error("Error fetching insignias", e);
@@ -106,7 +120,9 @@ const BadgesOffCanvas: React.FC = () => {
           ) : (
             <div className={styles.grid}>
               {items.map((b, idx) => {
-                const config = categoryConfig[b.category];
+                // ✅ Usar config por defecto si la categoría no existe
+                const config = categoryConfig[b.category] || defaultConfig;
+                
                 return (
                   <div key={idx} className={styles.card}>
                     <div className={styles.cardContent}>
