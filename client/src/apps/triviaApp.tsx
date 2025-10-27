@@ -229,6 +229,11 @@ export default function TriviaApp() {
 
       console.log('✅ Intento de trivia guardado correctamente');
 
+      // Calcular el score final directamente
+      const finalScore = results.totalScore % 10 === 0 
+        ? results.totalScore * 2  // Si es múltiplo de 10
+        : (results.totalScore * 2) + (10 - ((results.totalScore*2) % 10));  // Si no es múltiplo de 10
+
       // 🎯 Actualizar el progreso diario del usuario (streak y has_done_today)
       try {
         const progressResponse = await fetch(`http://localhost:4000/api/users/${currentUserId}/progress/trivia-completed`, {
@@ -236,6 +241,8 @@ export default function TriviaApp() {
           headers: {
             'Content-Type': 'application/json',
           },
+      
+          body: JSON.stringify({ score: finalScore })
         });
 
         if (!progressResponse.ok) {

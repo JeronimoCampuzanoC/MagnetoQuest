@@ -96,6 +96,9 @@ app.get('/api/users/:userId/progress', async (req, res) => {
 app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
   try {
     const { userId } = req.params;
+    // Optional: allow client to send final trivia score to be added to magento_points
+    const { score } = req.body ?? {};
+    const scoreValue = typeof score === 'number' ? score : (score ? parseInt(score, 10) || 0 : 0);
     const userProgressRepo = AppDataSource.getRepository(UserProgress);
     
     let userProgress = await userProgressRepo.findOne({
@@ -107,7 +110,8 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
         user_id: userId,
         streak: 1,
         has_done_today: true,
-        magento_points: 10 // Puntos por completar trivia
+        // Puntos por completar trivia + score opcional enviado por el cliente
+        magento_points: 10 + (scoreValue > 0 ? scoreValue : 0)
       });
     } else {
       // Si ya completó hoy, no incrementar racha
@@ -115,6 +119,11 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
         userProgress.streak += 1;
         userProgress.has_done_today = true;
         userProgress.magento_points += 10;
+      }
+
+      // Siempre sumar el score final de la trivia si se pasó en el body
+      if (scoreValue > 0) {
+        userProgress.magento_points += scoreValue;
       }
     }
     
