@@ -8,6 +8,7 @@ import { EffectCoverflow, Pagination } from 'swiper/modules';
 import styles from "./carousel.module.css";
 import CardSlide from "./cardSlide";
 import { AuthService } from "../../services/authService";
+import Modal from "./modal";
 
 type Item = {
   id: number;
@@ -24,15 +25,23 @@ const DATA: Item[] = [
   { id: 5, title: "Práctica", description: "Una tienda online completa con Next.js y Stripe..." }
 ];
 
+
 type Props = {
   autoPlayMs?: number;
+  hasDoneToday?: boolean | null;
 };
 
-const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800 }) => {
+const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = null }) => {
   const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
 
   // Función que maneja el click en una tarjeta
   const handleCardClick = (title: string, description: string) => {
+    // Si ya hizo la trivia hoy, mostramos un popup y no dejamos continuar
+    if (hasDoneToday === true) {
+      setShowModal(true);
+      return;
+    }
     try {
       // Obtener el userId desde AuthService
       const userId = AuthService.getCurrentUserId();
@@ -87,6 +96,14 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800 }) => {
           </SwiperSlide>
         ))}
       </Swiper>
+
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Trivia diaria completada"
+      >
+        <p>Ya hiciste tu trivia diaria. ¡Vuelve mañana para más desafíos! 🎯</p>
+      </Modal>
     </div>
   );
 };

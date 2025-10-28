@@ -1,0 +1,106 @@
+/* Backdrop - fondo oscuro semi-transparente */
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Contenedor del modal */
+.modal {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding: 40px 48px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Botón de cerrar (X) */
+.closeButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #61db8e;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background: #374151;
+  transform: scale(1.05);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
+}
+
+/* Título del modal */
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+/* Contenido del modal */
+.content {
+  font-size: 16px;
+  color: #4b5563;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .modal {
+    padding: 32px 24px;
+    max-width: 95%;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .content {
+    font-size: 14px;
+  }
+}
