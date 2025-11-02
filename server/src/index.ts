@@ -86,6 +86,74 @@ app.get('/api/users/:userId/progress', async (req, res) => {
       await userProgressRepo.save(userProgress);
     }
 
+    // ======================================
+    // ACTUALIZAR BADGES DE TIPO MagnetoPoints
+    // ======================================
+    try {
+      // 1) Asegurar que existan las filas badge_progress para todos los badges de categoría 'MagnetoPoints'
+      //    Insertar con progress 0 y awarded_at NULL si faltan
+      await AppDataSource.query(
+        `
+        INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+        SELECT $1, b.badge_id, 0, NULL
+        FROM badge b
+        WHERE b.category = 'MagnetoPoints' AND b.quantity IS NOT NULL
+        ON CONFLICT (user_id, badge_id) DO NOTHING
+        `,
+        [userId]
+      );
+
+      // 2) Actualizar progress basado en magento_points
+      //    - progress = LEAST(magento_points, b.quantity)
+      //    - awarded_at = NOW() únicamente cuando se alcanza la cantidad y awarded_at IS NULL
+      const magentoPoints = userProgress?.magento_points || 0;
+      const updatedMpRows = await AppDataSource.query(
+        `
+        UPDATE badge_progress bp
+        SET
+          progress = LEAST($2::int, b.quantity),
+          awarded_at = CASE
+            WHEN bp.awarded_at IS NULL AND LEAST($2::int, b.quantity) >= b.quantity THEN NOW()
+            ELSE bp.awarded_at
+          END
+        FROM badge b
+        WHERE bp.badge_id = b.badge_id
+          AND bp.user_id = $1
+          AND b.category = 'MagnetoPoints'
+          AND b.quantity IS NOT NULL
+          AND bp.awarded_at IS NULL
+  RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.quantity AS quantity, b.badge_score AS badge_score
+        `,
+        [userId, magentoPoints]
+      );
+
+  console.log(`📦 Actualizados ${updatedMpRows.length} badge_progress(es) de MagnetoPoints para user ${userId}`);
+  // Debug: inspect returned shape and badge_score
+  console.log(updatedMpRows);
+  try { console.log(updatedMpRows[0][0].badge_score); } catch (e) { console.log('updatedMpRows[0].badge_score ->', (e as any)?.message ?? e); }
+      if (updatedMpRows && updatedMpRows.length) {
+        const totalToAdd = updatedMpRows[0][0].badge_score
+        if (totalToAdd > 0) {
+          await AppDataSource.query(
+            `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+            [userId, totalToAdd]
+          );
+          console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges MagnetoPoints al usuario ${userId}`);
+        }
+
+        for (const r of updatedMpRows[0]) {
+          const name = r.badge_name || r.badge_id;
+          const progress = r.progress;
+          const qty = r.quantity;
+          const awarded = r.awarded_at ? '🏆 awarded' : '';
+          console.log(`✅ MagnetoPoints Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+        }
+      }
+    } catch (mpErr) {
+      console.error('❌ Error actualizando badges MagnetoPoints:', mpErr);
+      // No romper la respuesta por errores en badges
+    }
+
     res.json(userProgress);
   } catch (error) {
     console.error('Error fetching user progress:', error);
@@ -109,7 +177,7 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
       userProgress = userProgressRepo.create({
         user_id: userId,
         streak: 1,
-        has_done_today: true,
+        has_done_today: false,
         // Puntos por completar trivia + score opcional enviado por el cliente
         magento_points: 10 + (scoreValue > 0 ? scoreValue : 0)
       });
@@ -117,7 +185,7 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
       // Si ya completó hoy, no incrementar racha
       if (!userProgress.has_done_today) {
         userProgress.streak += 1;
-        userProgress.has_done_today = true;
+        userProgress.has_done_today = false;
         userProgress.magento_points += 10;
       }
 
@@ -201,6 +269,73 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
     } catch (missionError) {
       console.error('⚠️ [Trivia] Error al actualizar progreso de misiones:', missionError);
       // No fallar la respuesta si hay error en las misiones
+    }
+
+    // ======================================
+    // ACTUALIZAR BADGES DE TIPO STREAK
+    // ======================================
+    try {
+      // asegurar que existan las filas badge_progress para badges de tipo 'Streak'
+      await AppDataSource.query(
+        `
+        INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+        SELECT $1, b.badge_id, 0, NULL
+        FROM badge b
+        WHERE b.category = 'Streak' AND b.quantity IS NOT NULL
+        ON CONFLICT (user_id, badge_id) DO NOTHING
+        `,
+        [userId]
+      );
+
+      // actualizar progress basado en la racha actual del usuario
+      // - progress = min(streak, b.quantity)
+      // - awarded_at = NOW() solo si se alcanza o supera la cantidad y awarded_at IS NULL
+      const streakValue = userProgress?.streak || 0;
+      const updatedStreakRows = await AppDataSource.query(
+        `
+        UPDATE badge_progress bp
+        SET
+          progress = LEAST($2::int, b.quantity),
+          awarded_at = CASE
+            WHEN bp.awarded_at IS NULL AND LEAST($2::int, b.quantity) >= b.quantity THEN NOW()
+            ELSE bp.awarded_at
+          END
+        FROM badge b
+        WHERE bp.badge_id = b.badge_id
+          AND bp.user_id = $1
+          AND b.category = 'Streak'
+          AND b.quantity IS NOT NULL
+          AND bp.awarded_at IS NULL
+  RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.quantity AS quantity, b.badge_score AS badge_score
+        `,
+        [userId, streakValue]
+      );
+
+  console.log(`📈 Actualizados ${updatedStreakRows.length} badge_progress(es) de Streak para user ${userId}`);
+  // Debug: inspect returned shape and badge_score
+  console.log(updatedStreakRows);
+  try { console.log(updatedStreakRows[0][0].badge_score); } catch (e) { console.log('updatedStreakRows[0].badge_score ->', (e as any)?.message ?? e); }
+      if (updatedStreakRows && updatedStreakRows.length) {
+        const totalToAdd = updatedStreakRows[0][0].badge_score;
+        if (totalToAdd > 0) {
+          await AppDataSource.query(
+            `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+            [userId, totalToAdd]
+          );
+          console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges Streak al usuario ${userId}`);
+        }
+
+        for (const r of updatedStreakRows[0]) {
+          const name = r.badge_name || r.badge_id;
+          const progress = r.progress;
+          const qty = r.quantity;
+          const awarded = r.awarded_at ? '🏆 awarded' : '';
+          console.log(`✅ Streak Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+        }
+      }
+    } catch (streakErr) {
+      console.error('❌ Error actualizando badges Streak:', streakErr);
+      // No fallar la petición principal si hay error en badges
     }
 
     res.json(userProgress);
@@ -425,16 +560,20 @@ app.get('/users/:userId/missions-in-progress', async (req, res) => {
 app.get('/users/:userId/badges', async (req, res) => {
   const { userId } = req.params;
   console.log('Listando insignias para userId=', userId);
-  try {
+try {
     const qb = AppDataSource.getRepository(BadgeProgress)
       .createQueryBuilder('bp')
       .innerJoin('bp.badge', 'b')
       .select([
         'b.badge_name AS badge_name',
         'b.badge_score AS badge_score',
-        'b.category AS category',  // ← Agregar esto
+        'b.category AS category',
+        'bp.progress AS progress',
+        'bp.awarded_at AS awarded_at'
       ])
       .where('bp.user_id = :userId', { userId })
+      // Mostrar sólo las insignias ya otorgadas (awarded_at != NULL)
+      .andWhere('bp.awarded_at IS NOT NULL')
       .orderBy('b.badge_name', 'ASC');
 
     const result = await qb.getRawMany();
@@ -1037,6 +1176,80 @@ app.put('/api/users/:userId/resume', async (req, res) => {
       // No fallar la respuesta si hay error en las misiones
     }
 
+    // ===============================================
+    // ACTUALIZAR BADGES DE TIPO CV (Onboarding 10/50/100)
+    // ===============================================
+    try {
+      // Recalcular campos completados con el resume guardado
+      const fields = [
+        resume.description,
+        resume.experience,
+        resume.courses,
+        resume.projects,
+        resume.languages,
+        resume.references_cv
+      ];
+      const filledCount = fields.reduce((acc, v) => acc + (v && v.toString().trim() !== '' ? 1 : 0), 0);
+
+      const checks: Array<{ min: number; badgeName: string }> = [
+        { min: 1, badgeName: 'Onboarding 10%' },
+        { min: 3, badgeName: 'Onboarding 50%' },
+        { min: 6, badgeName: 'Onboarding 100%' },
+      ];
+
+      for (const c of checks) {
+        if (filledCount >= c.min) {
+          // Asegurar que exista la fila badge_progress
+          await AppDataSource.query(
+            `
+            INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+            SELECT $1, b.badge_id, 0, NULL
+            FROM badge b
+            WHERE b.badge_name = $2
+            ON CONFLICT (user_id, badge_id) DO NOTHING
+            `,
+            [userId, c.badgeName]
+          );
+
+          // Intentar marcar la badge como otorgada solo si no estaba otorgada
+          const updated = await AppDataSource.query(
+            `
+            UPDATE badge_progress bp
+            SET
+              progress = COALESCE(b.quantity, 1),
+              awarded_at = NOW()
+            FROM badge b
+            WHERE bp.badge_id = b.badge_id
+              AND bp.user_id = $1
+              AND b.badge_name = $2
+              AND bp.awarded_at IS NULL
+            RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.badge_score AS badge_score
+            `,
+            [userId, c.badgeName]
+          );
+          console.log(updated)
+          console.log(updated[0][0].badge_score)
+          if (updated && updated.length) {
+            const totalToAdd = updated[0][0].badge_score
+            if (totalToAdd > 0) {
+              await AppDataSource.query(
+                `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+                [userId, totalToAdd]
+              );
+              console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges CV al usuario ${userId}`);
+            }
+
+            for (const r of updated[0]) {
+              console.log(`🏅 Badge otorgada: ${r.badge_name} -> ${r.progress} (score ${r.badge_score})`);
+            }
+          }
+        }
+      }
+    } catch (badgeErr) {
+      console.error('❌ Error actualizando badges CV:', badgeErr);
+      // No fallar la petición principal por errores en badges
+    }
+
     res.json(resume);
   } catch (e) {
     console.error('Error updating/creating resume:', e);
@@ -1071,36 +1284,71 @@ app.post('/api/trivia-attempts', async (req, res) => {
 
     // 🎯 ACTUALIZAR PROGRESO DE BADGES DE TIPO TRIVIA
     try {
-      const badgeProgressRepo = AppDataSource.getRepository(BadgeProgress);
-      
-      // Buscar todos los badge_progress del usuario que tengan badge con category = 'Trivia'
-      // y donde el progress actual sea menor que el quantity del badge
-      const triviaBadgeProgresses = await badgeProgressRepo
-        .createQueryBuilder('bp')
-        .innerJoinAndSelect('bp.badge', 'badge')
-        .where('bp.user_id = :userId', { userId: user_id })
-        .andWhere('badge.category = :category', { category: 'Trivia' })
-        .andWhere('bp.progress < badge.quantity')
-        .andWhere('bp.awarded_at IS NULL') // Solo badges no completados
-        .getMany();
+      // 1) Asegurar que existan las filas badge_progress para todos los badges de categoría 'Trivia'
+      //    Insertamos solo badges con quantity IS NOT NULL (los de intentos tienen quantity)
+      await AppDataSource.query(
+        `
+        INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+        SELECT $1, b.badge_id, 0, NULL
+        FROM badge b
+        WHERE b.category = 'Trivia' AND b.quantity IS NOT NULL
+        ON CONFLICT (user_id, badge_id) DO NOTHING
+        `,
+        [user_id]
+      );
 
-      console.log(`📊 Encontrados ${triviaBadgeProgresses.length} badges de Trivia para actualizar`);
+      // 2) Incrementar progress solo en badges no completados (awarded_at IS NULL)
+      //    y solo hasta la cantidad objetivo (no sobrepasar).
+      //    awarded_at se establece a NOW() únicamente cuando se cruza el umbral por primera vez.
+      const updatedRows = await AppDataSource.query(
+        `
+        UPDATE badge_progress bp
+        SET
+          progress = LEAST(bp.progress + 1, b.quantity),
+          awarded_at = CASE
+            WHEN bp.progress < b.quantity
+             AND bp.progress + 1 >= b.quantity
+             AND bp.awarded_at IS NULL
+            THEN NOW()
+            ELSE bp.awarded_at
+          END
+        FROM badge b
+        WHERE bp.badge_id = b.badge_id
+          AND bp.user_id = $1
+          AND b.category = 'Trivia'
+          AND b.quantity IS NOT NULL
+          AND bp.awarded_at IS NULL
+          AND bp.progress < b.quantity
+  RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.quantity AS quantity, b.badge_score AS badge_score
+        `,
+        [user_id]
+      );
 
-      // Incrementar el progress de cada badge encontrado
-      for (const badgeProgress of triviaBadgeProgresses) {
-        badgeProgress.progress += 1;
-        
-        // Si alcanzó la cantidad requerida, marcar como completado
-        if (badgeProgress.progress >= badgeProgress.badge.quantity!) {
-          badgeProgress.awarded_at = new Date();
-          console.log(`🏆 Badge "${badgeProgress.badge.badge_name}" completado para usuario ${user_id}`);
+  console.log(`📊 Actualizados ${updatedRows.length} badge_progress(es) de Trivia para user ${user_id}`);
+  // Debug: inspect returned shape and badge_score
+  console.log(updatedRows);
+  try { console.log(updatedRows[0][0].badge_score); } catch (e) { console.log('updatedRows[0].badge_score ->', (e as any)?.message ?? e); }
+
+      if (updatedRows && updatedRows.length) {
+        const totalToAdd = updatedRows[0][0].badge_score
+        if (totalToAdd > 0) {
+          await AppDataSource.query(
+            `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+            [user_id, totalToAdd]
+          );
+          console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges Trivia al usuario ${user_id}`);
         }
-        
-        await badgeProgressRepo.save(badgeProgress);
-        console.log(`✅ Progress actualizado para badge "${badgeProgress.badge.badge_name}": ${badgeProgress.progress}/${badgeProgress.badge.quantity}`);
+
+        for (const r of updatedRows[0]) {
+          const name = r.badge_name || r.badge_id;
+          const progress = r.progress;
+          const qty = r.quantity;
+          const awarded = r.awarded_at ? '🏆 awarded' : '';
+          console.log(`✅ Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+        }
       }
     } catch (badgeError) {
-      console.error('❌ Error al actualizar progreso de badges:', badgeError);
+      console.error('❌ Error al actualizar progreso de badges (trivia):', badgeError);
       // No fallar la petición principal si hay error en badges
     }
 

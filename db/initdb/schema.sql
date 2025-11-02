@@ -204,8 +204,8 @@ INSERT INTO badge (badge_name, badge_score, category, parameter, quantity) VALUE
     
     -- Insignias de MagnetoPoints (Metas de puntos)
     ('Iniciado', 25, 'MagnetoPoints', 'puntos_totales', 100),
-    ('En Camino', 50, 'MagnetoPoints', 'puntos_totales', 300),
-    ('Experto', 100, 'MagnetoPoints', 'puntos_totales', 500),
+    ('En Camino', 50, 'MagnetoPoints', 'puntos_totales', 500),
+    ('Experto', 100, 'MagnetoPoints', 'puntos_totales', 1500),
     
     -- Insignias de Trivia
     ('Primer Intento', 10, 'Trivia', 'intentos_trivia', 1),
