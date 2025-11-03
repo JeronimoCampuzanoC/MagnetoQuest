@@ -384,20 +384,15 @@ IMPORTANTE: Aunque el estudiante haya tenido bajo puntaje, el feedback debe ser 
 Genera UNA pregunta de trivia sobre el siguiente tema:
 
 TEMA: ${this.topic.name}
-DESCRIPCIÓN: ${this.topic.description}
+SUBTEMA: ${this.topic.description}
+
+Genera preguntas avanzadas sobre TEMA, teniendo en cuenta que: 
+- La pregunta debe ser específica dentro del SUBTEMA, no general (evitar "¿Qué es...?" o "Define...").
+- Incluye elementos concretos (por ejemplo: contexto técnico, métricas, restricciones, ejemplos o escenarios reales, casos de uso).
 `;
-
-    if (this.topic.context) {
-      prompt += `CONTEXTO: ${this.topic.context}\n`;
-    }
-
-    if (this.topic.focusAreas && this.topic.focusAreas.length > 0) {
-      prompt += `ÁREAS DE ENFOQUE: ${this.topic.focusAreas.join(', ')}\n`;
-    }
 
     prompt += `
 DIFICULTAD: ${difficulty}
-PREGUNTA NÚMERO: ${this.currentQuestion} de ${this.totalQuestions}
 
 PREGUNTAS YA REALIZADAS (no repetir temas similares):
 ${this.askedQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
@@ -408,7 +403,7 @@ INSTRUCCIONES:
 - No hagas preguntas de opción múltiple
 - La respuesta esperada debe ser clara y evaluable
 
-🆕 IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido en este formato exacto:
+IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido en este formato exacto:
 
 {
   "pregunta": "Tu pregunta aquí",

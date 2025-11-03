@@ -53,10 +53,11 @@ const Header: React.FC = () => {
 
                 {/* Links*/}
                 <Nav className="me-auto d-none d-md-flex" navbar>
-                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">Inicio</RRNavLink></NavItem>
+                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">Empleos</RRNavLink></NavItem>
+                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">Ver Todo</RRNavLink></NavItem>
                     <NavItem className={styles.lettersItem}><RRNavLink to="/perfil" className="nav-link">Perfil</RRNavLink></NavItem>
                     <NavItem className={styles.lettersItem}><RRNavLink to="/misiones" className="nav-link">Misiones</RRNavLink></NavItem>
-                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">Trivia</RRNavLink></NavItem>
+                    <NavItem className={styles.lettersItem}><RRNavLink to="/home" className="nav-link">En progreso</RRNavLink></NavItem>
                 </Nav>
 
 
