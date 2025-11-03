@@ -13,16 +13,17 @@ import Modal from "./modal";
 type Item = {
   id: number;
   title: string;
+  type: string;
   description: string;
   image?: string;
 };
 
 const DATA: Item[] = [
-  { id: 1, title: "Programación Backend", description: 'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño, optimización de bases de datos, APIs RESTful, microservicios, y mejores prácticas de desarrollo.' },
-  { id: 2, title: "Habilidades Blandas", description: "Genera preguntas avanzadas y situacionales sobre habilidades blandas, con viñetas realistas que evalúen toma de decisiones, comunicación asertiva, manejo de conflictos, liderazgo, colaboración, empatía, feedback efectivo y priorización bajo presión." },
-  { id: 3, title: "Entrevistas", description: "Genera preguntas avanzadas para preparación de entrevistas con énfasis en {ROL_O_TÓPICO} (p. ej., comportamentales, liderazgo, negociación salarial, métricas de impacto, comunicación ejecutiva), usando ejemplos prácticos." },
-  { id: 4, title: "Empleo Colombiano", description: "Genera preguntas situacionales sobre temas laborales en Colombia (por ejemplo, cómo pedir vacaciones, qué pasa con la prima, qué hacer si no me afilian), usando casos cotidianos y opciones comprensibles." },
-  { id: 5, title: "Práctica", description: "Una tienda online completa con Next.js y Stripe..." }
+  { id: 1, title: "Programación Backend", type :"Especial", description: 'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño, optimización de bases de datos, APIs RESTful, microservicios, y mejores prácticas de desarrollo.' },
+  { id: 2, title: "Habilidades Blandas", type :"Habilidades", description: "Genera preguntas avanzadas y situacionales sobre habilidades blandas, con viñetas realistas que evalúen toma de decisiones, comunicación asertiva, manejo de conflictos, liderazgo, colaboración, empatía, feedback efectivo y priorización bajo presión." },
+  { id: 3, title: "Entrevistas", type :"Entrevistas", description: "Genera preguntas avanzadas para preparación de entrevistas con énfasis en {ROL_O_TÓPICO} (p. ej., comportamentales, liderazgo, negociación salarial, métricas de impacto, comunicación ejecutiva), usando ejemplos prácticos." },
+  { id: 4, title: "Empleo Colombiano", type :"Empleo", description: "Genera preguntas situacionales sobre temas laborales en Colombia (por ejemplo, cómo pedir vacaciones, qué pasa con la prima, qué hacer si no me afilian), usando casos cotidianos y opciones comprensibles." },
+  { id: 5, title: "Práctica", type :"Especial", description: "Una tienda online completa con Next.js y Stripe..." }
 ];
 
 
