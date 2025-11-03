@@ -212,3 +212,72 @@ MagnetoQuest/
 ### Available Scripts
 
 Each service has its own `package.json` with specific scripts. Check individual directories for service-specific commands.
+
+## Automated Services
+
+### Mission Rotation Service
+
+The backend includes an **automated mission rotation service** (`MissionDelegate`) that runs every night at midnight (Bogota timezone). This service:
+
+- 🔄 Identifies expired missions (`ends_at < NOW()`)
+- 🗑️ Removes expired missions from users
+- 🎲 Assigns new random missions with the same frequency type
+- ⏰ Calculates appropriate expiration dates based on mission frequency:
+  - **Daily**: End of current day (23:59:59)
+  - **Flash**: 6 hours from assignment
+  - **Weekly**: 7 days (23:59:59)
+  - **Monthly**: 30 days (23:59:59)
+
+#### Testing Mission Rotation
+
+The service starts automatically when the backend launches. To test it manually:
+
+**Check service status:**
+```bash
+curl http://localhost:4000/api/admin/mission-rotation/status
+```
+
+**Execute rotation manually** (without waiting for midnight):
+```bash
+curl -X POST http://localhost:4000/api/admin/mission-rotation/execute
+```
+
+**Expected response:**
+```json
+{
+  "message": "Mission rotation executed successfully",
+  "timestamp": "2025-11-03T12:34:56.789Z"
+}
+```
+
+#### Creating Test Scenarios
+
+To test the rotation logic, you can manually expire missions in the database:
+
+```sql
+-- Connect to the database
+docker exec -it poc-postgres psql -U poc_user -d poc_db
+
+-- Update missions to make them expired (for testing)
+UPDATE user_mission_progress
+SET ends_at = NOW() - INTERVAL '1 day'
+WHERE user_id = 'your_user_id_here' 
+  AND mission_id IN (
+    SELECT mission_id FROM mission WHERE frequency = 'daily' LIMIT 1
+  );
+
+-- Verify the changes
+SELECT ump.*, m.title, m.frequency, 
+       CASE WHEN ump.ends_at < NOW() THEN 'EXPIRED' ELSE 'ACTIVE' END as status
+FROM user_mission_progress ump
+JOIN mission m ON ump.mission_id = m.mission_id
+WHERE ump.user_id = 'your_user_id_here';
+```
+
+After creating expired missions, execute the manual rotation endpoint to see the service in action.
+
+**Note:** For detailed testing instructions, see `server/TEST_MISSION_ROTATION.md`
+
+### Daily Reset Service
+
+The backend also includes a **daily reset service** that runs twice per day to manage user streaks and send notifications. See `docs/DAILY_RESET_SERVICE.md` for more information.

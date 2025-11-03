@@ -17,6 +17,7 @@ import { UserMissionProgress } from './entities/UserMissionProgress';
 import { UserProgress } from './entities/UserProgress';
 import { NotificationService } from './services/NotificationService';
 import { dailyResetService } from './services/DailyResetService';
+import { missionDelegateService } from './services/MissionDelegate';
 import { In } from 'typeorm';
 
 dotenv.config();
@@ -84,6 +85,35 @@ app.post('/api/test/notifications/mission-deadline', async (_req, res) => {
   } catch (error) {
     console.error('Error testing mission deadline notifications:', error);
     res.status(500).json({ error: 'Failed to test mission deadline notifications' });
+  }
+});
+
+// Endpoints para gestionar el MissionDelegate (admin only - en producción agregar autenticación)
+app.post('/api/admin/mission-rotation/execute', async (_req, res) => {
+  try {
+    console.log('🔧 [Admin] Ejecutando rotación de misiones manualmente...');
+    await missionDelegateService.executeManually();
+    res.json({ 
+      message: 'Mission rotation executed successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error en rotación manual de misiones:', error);
+    res.status(500).json({ error: 'Failed to execute mission rotation' });
+  }
+});
+
+app.get('/api/admin/mission-rotation/status', async (_req, res) => {
+  try {
+    const isRunning = missionDelegateService.isRunning();
+    res.json({ 
+      status: isRunning ? 'running' : 'stopped',
+      service: 'MissionDelegate',
+      schedule: '0 0 * * * (midnight Bogota time)'
+    });
+  } catch (error) {
+    console.error('❌ Error al verificar estado de MissionDelegate:', error);
+    res.status(500).json({ error: 'Failed to get service status' });
   }
 });
 
@@ -1508,6 +1538,9 @@ AppDataSource.initialize()
     
     // 🔄 Iniciar el servicio de reset diario
     dailyResetService.start();
+    
+    // 🎯 Iniciar el servicio de rotación de misiones
+    missionDelegateService.start();
     
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)
