@@ -49,6 +49,7 @@ export class NotificationService {
     cron.schedule('0 19 * * *', async () => {
       console.log('Running mission deadline notifications at 2:00 PM Colombia time');
       await this.sendMissionDeadlineNotifications();
+      await this.sendApplicationMissionNotifications();
     }, {
       timezone: 'America/Bogota'
     });
@@ -242,5 +243,78 @@ export class NotificationService {
   public async testMissionDeadlineNotifications(): Promise<void> {
     console.log('Testing mission deadline notifications...');
     await this.sendMissionDeadlineNotifications();
+  }
+
+  /**
+   * Envía notificaciones para misiones de tipo Application pendientes
+   */
+  private async sendApplicationMissionNotifications(): Promise<void> {
+    try {
+      const applicationMissions = await this.getPendingApplicationMissions();
+      
+      console.log(`Sending application mission notifications to ${applicationMissions.length} users`);
+
+      for (const missionData of applicationMissions) {
+        try {
+          // Calcular horas restantes
+          const now = new Date();
+          const endDate = new Date(missionData.ends_at);
+          const hoursRemaining = (endDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+          await this.emailService.sendApplicationMissionReminder(
+            missionData.user_id,
+            missionData.email,
+            missionData.name,
+            missionData.mission_title,
+            missionData.mission_description,
+            hoursRemaining
+          );
+          
+          console.log(`Application mission notification sent to ${missionData.email} for "${missionData.mission_title}"`);
+        } catch (error) {
+          console.error(`Failed to send application mission notification to ${missionData.email}:`, error);
+        }
+      }
+
+      console.log('Application mission notifications batch completed');
+    } catch (error) {
+      console.error('Error in sendApplicationMissionNotifications:', error);
+    }
+  }
+
+  /**
+   * Obtiene misiones de tipo Application que están pendientes y no completadas
+   */
+  private async getPendingApplicationMissions(): Promise<any[]> {
+    const userMissionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+    
+    const query = userMissionProgressRepo
+      .createQueryBuilder('ump')
+      .innerJoin(AppUser, 'au', 'au.id_app_user = ump.user_id')
+      .innerJoin(Mission, 'm', 'm.mission_id = ump.mission_id')
+      .select('ump.user_id', 'user_id')
+      .addSelect('au.name', 'name')
+      .addSelect('au.email', 'email')
+      .addSelect('m.title', 'mission_title')
+      .addSelect('m.description', 'mission_description')
+      .addSelect('ump.progress', 'progress')
+      .addSelect('ump.ends_at', 'ends_at')
+      .where('m.category = :category', { category: 'Application' })
+      .andWhere('ump.ends_at IS NOT NULL')
+      .andWhere('ump.ends_at > NOW()') // Solo misiones que no han vencido
+      .andWhere('ump.status != :completedStatus', { completedStatus: 'completed' }) // Que no estén completadas
+      .andWhere('au.email IS NOT NULL')
+      .andWhere("au.email != ''");
+
+    const result = await query.getRawMany();
+    return result;
+  }
+
+  /**
+   * Método manual para probar las notificaciones de Application (útil para desarrollo)
+   */
+  public async testApplicationMissionNotifications(): Promise<void> {
+    console.log('Testing Application mission notifications...');
+    await this.sendApplicationMissionNotifications();
   }
 }

@@ -22,6 +22,9 @@ import { In } from 'typeorm';
 
 dotenv.config();
 
+// Inicializar el servicio de notificaciones
+const notificationService = new NotificationService();
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -708,6 +711,10 @@ app.post('/api/users/:userId/missions/:missionId/apply', async (req, res) => {
     const missionRepo = AppDataSource.getRepository(Mission);
     const userProgressRepo = AppDataSource.getRepository(UserProgress);
 
+    // Variables para calcular puntos dinámicos (solo Application)
+    let actualXpReward = 0;
+    let completionPercentage = 100;
+
     // Buscar el progreso de la misión del usuario
     const missionProgress = await missionProgressRepo.findOne({
       where: { user_id: userId, mission_id: missionId },
@@ -739,6 +746,33 @@ app.post('/api/users/:userId/missions/:missionId/apply', async (req, res) => {
       missionProgress.completed_at = new Date();
       missionProgress.progress = mission.objective; // Asegurar que no exceda el objetivo
 
+      // 🎯 Calcular XP con porcentaje basado en velocidad de completación (SOLO para Application)
+      actualXpReward = mission.xp_reward;
+      completionPercentage = 100;
+
+      if (mission.category === 'Application' && missionProgress.starts_at && missionProgress.ends_at) {
+        const startTime = new Date(missionProgress.starts_at).getTime();
+        const endTime = new Date(missionProgress.ends_at).getTime();
+        const completedTime = new Date(missionProgress.completed_at).getTime();
+        
+        const totalDuration = endTime - startTime; // Duración total de la misión
+        const timeRemaining = endTime - completedTime; // Tiempo que quedaba al completar
+        
+        if (totalDuration > 0) {
+          // Calcular porcentaje de tiempo restante (0% a 100%)
+          const timeRemainingPercentage = Math.max(0, Math.min(100, (timeRemaining / totalDuration) * 100));
+          
+          // Calcular porcentaje de puntos: 70% cuando 0% tiempo restante, 100% cuando 100% tiempo restante
+          // Formula: pointsPercentage = 70 + (timeRemainingPercentage * 0.3)
+          completionPercentage = 70 + (timeRemainingPercentage * 0.3);
+          
+          // Aplicar el porcentaje a los puntos base
+          actualXpReward = Math.round(mission.xp_reward * (completionPercentage / 100));
+          
+          console.log(`⏱️ [Apply] Tiempo restante: ${timeRemainingPercentage.toFixed(2)}% → Puntos: ${completionPercentage.toFixed(2)}% (${actualXpReward}/${mission.xp_reward})`);
+        }
+      }
+
       // 🎯 Otorgar XP al usuario (MagnetoPoints)
       let userProgress = await userProgressRepo.findOne({ where: { user_id: userId } });
       
@@ -752,11 +786,11 @@ app.post('/api/users/:userId/missions/:missionId/apply', async (req, res) => {
         });
       }
 
-      userProgress.magento_points += mission.xp_reward;
+      userProgress.magento_points += actualXpReward;
       userProgress.updated_at = new Date();
       await userProgressRepo.save(userProgress);
 
-      console.log(`✅ [Apply] Misión completada! Usuario ${userId} recibió ${mission.xp_reward} MagnetoPoints`);
+      console.log(`✅ [Apply] Misión completada! Usuario ${userId} recibió ${actualXpReward} MagnetoPoints (${completionPercentage.toFixed(1)}% de ${mission.xp_reward})`);
 
       // Crear notificación de misión completada
       try {
@@ -768,7 +802,9 @@ app.post('/api/users/:userId/missions/:missionId/apply', async (req, res) => {
           metadata: {
             mission_title: mission.title,
             mission_category: mission.category,
-            xp_reward: mission.xp_reward,
+            xp_reward: actualXpReward,
+            base_xp: mission.xp_reward,
+            completion_percentage: mission.category === 'Application' ? completionPercentage : 100,
             completed_at: new Date().toISOString()
           }
         });
@@ -860,9 +896,13 @@ app.post('/api/users/:userId/missions/:missionId/apply', async (req, res) => {
       objective: mission.objective,
       status: missionProgress.status,
       completed: missionProgress.status === 'completed',
-      xp_earned: missionProgress.status === 'completed' ? mission.xp_reward : 0,
+      xp_earned: missionProgress.status === 'completed' ? actualXpReward : 0,
+      base_xp: mission.xp_reward,
+      completion_percentage: mission.category === 'Application' && missionProgress.status === 'completed' ? completionPercentage : 100,
       message: missionProgress.status === 'completed' 
-        ? `¡Felicidades! Has completado la misión y ganado ${mission.xp_reward} MagnetoPoints` 
+        ? mission.category === 'Application' && completionPercentage < 100
+          ? `¡Felicidades! Has completado la misión y ganado ${actualXpReward} MagnetoPoints (${completionPercentage.toFixed(1)}% por velocidad)` 
+          : `¡Felicidades! Has completado la misión y ganado ${actualXpReward} MagnetoPoints`
         : `Progreso: ${missionProgress.progress}/${mission.objective}`
     });
 
@@ -1747,6 +1787,28 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
   }
 });
 
+// ========== TEST ENDPOINTS ==========
+/**
+ * Endpoint de prueba para enviar notificaciones de Application missions manualmente
+ */
+app.post('/api/test/notifications/application-missions', async (req, res) => {
+  try {
+    console.log('🧪 Manual test: Sending Application mission notifications...');
+    const notificationService = new NotificationService();
+    await notificationService.testApplicationMissionNotifications();
+    res.json({ 
+      success: true, 
+      message: 'Application mission notifications sent successfully'
+    });
+  } catch (error: any) {
+    console.error('Error in test endpoint:', error);
+    res.status(500).json({ 
+      error: 'Failed to send Application mission notifications', 
+      details: error.message 
+    });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 
 // Inicializa TypeORM y arranca el server
@@ -1767,6 +1829,9 @@ AppDataSource.initialize()
     
     // 🎯 Iniciar el servicio de rotación de misiones
     missionDelegateService.start();
+    
+    // 📧 Iniciar el servicio de notificaciones
+    notificationService.initializeCronJobs();
     
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)
