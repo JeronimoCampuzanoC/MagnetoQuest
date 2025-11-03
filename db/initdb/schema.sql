@@ -271,9 +271,9 @@ INSERT INTO mission (title, description, category, frequency, xp_reward, objecti
     ('Práctica con Trivias', 'Responde 2 trivias en un día', 'Trivia', 'daily', 50, 2, TRUE),
     
     -- Misiones Relámpago - Aplicaciones (MagnetoPoints por velocidad)
-    ('Aplicación Express', 'Llena una aplicación de empleo en tiempo récord', 'Application', 'flash', 100, 1, TRUE),
-    ('Sprint de Aplicaciones', 'Completa 3 aplicaciones rápidamente', 'Application', 'flash', 200, 3, TRUE),
-    
+    ('Aplicación Express', 'Te están buscando y aún no lo sabes, aplica a JR RPA DEVELOPER ENGLISH C1 en Solvo', 'Application', 'flash', 100, 1, TRUE),
+    ('Sprint de Aplicaciones', 'Esta empresa vio tu perfil y dijo: Queremos a alguien así. No dejes que otro se siente en esa silla. Mira la vacante antes de que cierre Ingeniero Especialista Azure Devops SYNERGY TECHNOLOGY AND PROCESS CONSULTING S A S $5,800,000', 'Application', 'flash', 100, 1, TRUE),
+
     -- Misiones Semanales - Trivias Especiales por Categoría
     ('Trivia de Habilidades', 'Completa una trivia sobre habilidades técnicas', 'Trivia_Abilities', 'weekly', 75, 1, TRUE),
     ('Trivia de Entrevistas', 'Practica preguntas de entrevistas con trivia', 'Trivia_Interview', 'weekly', 75, 1, TRUE),

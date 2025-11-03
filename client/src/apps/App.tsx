@@ -164,6 +164,7 @@ import Header from "../components/header";
 import TriviaApp from "./triviaApp";
 import Misiones from "./misiones";
 import Perfil from "./perfil";
+import Applications from "./applications";
 import Notifications from "../components/notifications";
 import Login from "../components/login";
 import ProtectedRoute from "../components/protectedRoute";
@@ -235,6 +236,14 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Misiones />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/empleos"
+          element={
+            <ProtectedRoute>
+              <Applications />
             </ProtectedRoute>
           }
         />

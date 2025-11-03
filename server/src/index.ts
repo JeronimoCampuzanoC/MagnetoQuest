@@ -646,6 +646,232 @@ app.get('/users/:userId/missions-in-progress', async (req, res) => {
   }
 });
 
+// LISTAR misiones de tipo Application para el usuario
+app.get('/api/users/:userId/missions/applications', async (req, res) => {
+  const { userId } = req.params;
+  console.log('Listando misiones de Application para userId=', userId);
+  try {
+    const qb = AppDataSource.getRepository(UserMissionProgress)
+      .createQueryBuilder('ump')
+      .innerJoin('ump.mission', 'm')
+      .select([
+        'ump.ump_id',
+        'ump.user_id',
+        'ump.mission_id',
+        'ump.status',
+        'ump.progress',
+        'ump.starts_at',
+        'ump.ends_at',
+        'ump.completed_at',
+        'm.title',
+        'm.description',
+        'm.category',
+        'm.xp_reward',
+        'm.objective',
+      ])
+      .where('ump.user_id = :userId', { userId })
+      .andWhere('m.category = :category', { category: 'Application' })
+      .orderBy('ump.starts_at', 'DESC');
+
+    const result = await qb.getRawMany();
+
+    const mapped = result.map(r => ({
+      ump_id: r.ump_ump_id,
+      user_id: r.ump_user_id,
+      mission_id: r.ump_mission_id,
+      status: r.ump_status,
+      progress: r.ump_progress,
+      starts_at: r.ump_starts_at,
+      ends_at: r.ump_ends_at,
+      completed_at: r.ump_completed_at,
+      mission_title: r.m_title,
+      mission_description: r.m_description,
+      mission_category: r.m_category,
+      xp_reward: r.m_xp_reward,
+      objective: r.m_objective,
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error('Error listing application missions for user', userId, err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// APLICAR a un empleo (incrementar progreso de misión de Application)
+app.post('/api/users/:userId/missions/:missionId/apply', async (req, res) => {
+  const { userId, missionId } = req.params;
+  console.log(`📝 [Apply] Usuario ${userId} aplicando a misión ${missionId}`);
+  
+  try {
+    const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+    const missionRepo = AppDataSource.getRepository(Mission);
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
+
+    // Buscar el progreso de la misión del usuario
+    const missionProgress = await missionProgressRepo.findOne({
+      where: { user_id: userId, mission_id: missionId },
+      relations: ['mission']
+    });
+
+    if (!missionProgress) {
+      return res.status(404).json({ error: 'Misión no encontrada para este usuario' });
+    }
+
+    // Verificar que sea una misión de Application
+    const mission = await missionRepo.findOne({ where: { mission_id: missionId } });
+    if (!mission || mission.category !== 'Application') {
+      return res.status(400).json({ error: 'Esta misión no es de tipo Application' });
+    }
+
+    // Verificar si ya está completada
+    if (missionProgress.status === 'completed') {
+      return res.status(400).json({ error: 'Esta misión ya está completada' });
+    }
+
+    // Incrementar el progreso
+    const oldProgress = missionProgress.progress;
+    missionProgress.progress += 1;
+
+    // Verificar si se completó la misión
+    if (missionProgress.progress >= mission.objective) {
+      missionProgress.status = 'completed';
+      missionProgress.completed_at = new Date();
+      missionProgress.progress = mission.objective; // Asegurar que no exceda el objetivo
+
+      // 🎯 Otorgar XP al usuario (MagnetoPoints)
+      let userProgress = await userProgressRepo.findOne({ where: { user_id: userId } });
+      
+      if (!userProgress) {
+        // Crear user_progress si no existe
+        userProgress = userProgressRepo.create({
+          user_id: userId,
+          streak: 0,
+          has_done_today: false,
+          magento_points: 0
+        });
+      }
+
+      userProgress.magento_points += mission.xp_reward;
+      userProgress.updated_at = new Date();
+      await userProgressRepo.save(userProgress);
+
+      console.log(`✅ [Apply] Misión completada! Usuario ${userId} recibió ${mission.xp_reward} MagnetoPoints`);
+
+      // Crear notificación de misión completada
+      try {
+        const notificationRepo = AppDataSource.getRepository(NotificationLog);
+        const notification = notificationRepo.create({
+          user_id: userId,
+          channel: 'email',
+          template: 'mission_completed',
+          metadata: {
+            mission_title: mission.title,
+            mission_category: mission.category,
+            xp_reward: mission.xp_reward,
+            completed_at: new Date().toISOString()
+          }
+        });
+        await notificationRepo.save(notification);
+        console.log(`🔔 Notificación de misión completada creada para usuario ${userId}`);
+      } catch (notifError) {
+        console.error('❌ Error al crear notificación:', notifError);
+      }
+
+      // 🏆 Verificar y actualizar badges de MagnetoPoints
+      try {
+        await AppDataSource.query(
+          `
+          INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+          SELECT $1, b.badge_id, 0, NULL
+          FROM badge b
+          WHERE b.category = 'MagnetoPoints' AND b.quantity IS NOT NULL
+          ON CONFLICT (user_id, badge_id) DO NOTHING
+          `,
+          [userId]
+        );
+
+        await AppDataSource.query(
+          `
+          UPDATE badge_progress bp
+          SET 
+            progress = LEAST($2, b.quantity),
+            awarded_at = CASE
+              WHEN bp.awarded_at IS NULL AND $2 >= b.quantity THEN NOW()
+              ELSE bp.awarded_at
+            END
+          FROM badge b
+          WHERE bp.badge_id = b.badge_id
+            AND bp.user_id = $1
+            AND b.category = 'MagnetoPoints'
+            AND b.quantity IS NOT NULL
+          `,
+          [userId, userProgress.magento_points]
+        );
+
+        // Verificar si se otorgó un nuevo badge
+        const newBadgesResult = await AppDataSource.query(
+          `
+          SELECT b.badge_name, b.badge_score, b.category
+          FROM badge_progress bp
+          JOIN badge b ON bp.badge_id = b.badge_id
+          WHERE bp.user_id = $1
+            AND b.category = 'MagnetoPoints'
+            AND bp.awarded_at >= NOW() - INTERVAL '5 seconds'
+          `,
+          [userId]
+        );
+
+        // Crear notificación para cada nuevo badge
+        for (const badge of newBadgesResult) {
+          const notificationRepo = AppDataSource.getRepository(NotificationLog);
+          const badgeNotification = notificationRepo.create({
+            user_id: userId,
+            channel: 'email',
+            template: 'badge_award',
+            metadata: {
+              badge_name: badge.badge_name,
+              badge_score: badge.badge_score,
+              category: badge.category,
+              awarded_at: new Date().toISOString()
+            }
+          });
+          await notificationRepo.save(badgeNotification);
+          console.log(`🔔 Notificación de badge creada: ${badge.badge_name} para usuario ${userId}`);
+        }
+
+      } catch (badgeError) {
+        console.error('❌ Error al actualizar badges:', badgeError);
+      }
+    } else {
+      // Solo actualizar el estado a in_progress si aún no lo está
+      if (missionProgress.status === 'not_started') {
+        missionProgress.status = 'in_progress';
+        missionProgress.starts_at = new Date();
+      }
+      console.log(`📈 [Apply] Progreso actualizado: ${oldProgress} → ${missionProgress.progress}/${mission.objective}`);
+    }
+
+    await missionProgressRepo.save(missionProgress);
+
+    res.json({
+      success: true,
+      progress: missionProgress.progress,
+      objective: mission.objective,
+      status: missionProgress.status,
+      completed: missionProgress.status === 'completed',
+      xp_earned: missionProgress.status === 'completed' ? mission.xp_reward : 0,
+      message: missionProgress.status === 'completed' 
+        ? `¡Felicidades! Has completado la misión y ganado ${mission.xp_reward} MagnetoPoints` 
+        : `Progreso: ${missionProgress.progress}/${mission.objective}`
+    });
+
+  } catch (err) {
+    console.error('❌ [Apply] Error al aplicar a empleo:', err);
+    res.status(500).json({ error: 'Error al procesar la aplicación' });
+  }
+});
+
 
 // LISTAR insignias
 app.get('/users/:userId/badges', async (req, res) => {

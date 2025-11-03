@@ -233,16 +233,19 @@ The backend includes an **automated mission rotation service** (`MissionDelegate
 The service starts automatically when the backend launches. To test it manually:
 
 **Check service status:**
+
 ```bash
 curl http://localhost:4000/api/admin/mission-rotation/status
 ```
 
 **Execute rotation manually** (without waiting for midnight):
+
 ```bash
 curl -X POST http://localhost:4000/api/admin/mission-rotation/execute
 ```
 
 **Expected response:**
+
 ```json
 {
   "message": "Mission rotation executed successfully",
@@ -261,13 +264,13 @@ docker exec -it poc-postgres psql -U poc_user -d poc_db
 -- Update missions to make them expired (for testing)
 UPDATE user_mission_progress
 SET ends_at = NOW() - INTERVAL '1 day'
-WHERE user_id = 'your_user_id_here' 
+WHERE user_id = 'your_user_id_here'
   AND mission_id IN (
     SELECT mission_id FROM mission WHERE frequency = 'daily' LIMIT 1
   );
 
 -- Verify the changes
-SELECT ump.*, m.title, m.frequency, 
+SELECT ump.*, m.title, m.frequency,
        CASE WHEN ump.ends_at < NOW() THEN 'EXPIRED' ELSE 'ACTIVE' END as status
 FROM user_mission_progress ump
 JOIN mission m ON ump.mission_id = m.mission_id
