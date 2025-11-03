@@ -25,6 +25,28 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Helper function to create badge award notifications
+async function createBadgeAwardNotification(userId: string, badgeName: string, badgeScore: number, category: string) {
+  try {
+    const notificationRepo = AppDataSource.getRepository(NotificationLog);
+    const notification = notificationRepo.create({
+      user_id: userId,
+      channel: 'email',
+      template: 'badge_award',
+      metadata: {
+        badge_name: badgeName,
+        badge_score: badgeScore,
+        category: category,
+        awarded_at: new Date().toISOString()
+      }
+    });
+    await notificationRepo.save(notification);
+    console.log(`🔔 Notificación de badge creada: ${badgeName} para usuario ${userId}`);
+  } catch (error) {
+    console.error('❌ Error al crear notificación de badge:', error);
+    // No fallar la operación principal si falla la notificación
+  }
+}
 
 app.get('/api/hello', async (_req, res)=>{
   res.json({message:"Hola desde el back"})
@@ -147,6 +169,11 @@ app.get('/api/users/:userId/progress', async (req, res) => {
           const qty = r.quantity;
           const awarded = r.awarded_at ? '🏆 awarded' : '';
           console.log(`✅ MagnetoPoints Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+          
+          // 🔔 Crear notificación si el badge fue otorgado
+          if (r.awarded_at) {
+            await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'MagnetoPoints');
+          }
         }
       }
     } catch (mpErr) {
@@ -331,6 +358,11 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
           const qty = r.quantity;
           const awarded = r.awarded_at ? '🏆 awarded' : '';
           console.log(`✅ Streak Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+          
+          // 🔔 Crear notificación si el badge fue otorgado
+          if (r.awarded_at) {
+            await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'Streak');
+          }
         }
       }
     } catch (streakErr) {
@@ -464,8 +496,37 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
           type = 'mission';
           break;
         case 'badge_award':
-          title = '🏆 ¡Nueva insignia!';
-          message = 'Has ganado una nueva insignia por tu progreso';
+          const badgeName = notification.metadata?.badge_name || 'Insignia';
+          const badgeScore = notification.metadata?.badge_score || 0;
+          const badgeCategory = notification.metadata?.category || 'general';
+          
+          // Determinar emoji y texto según la categoría del badge
+          let categoryEmoji = '🏆';
+          let categoryText = '';
+          
+          switch (badgeCategory) {
+            case 'Trivia':
+              categoryEmoji = '🧠';
+              categoryText = 'por completar trivias';
+              break;
+            case 'Streak':
+              categoryEmoji = '🔥';
+              categoryText = 'por mantener tu racha';
+              break;
+            case 'MagnetoPoints':
+              categoryEmoji = '💎';
+              categoryText = 'por acumular puntos';
+              break;
+            case 'CV':
+              categoryEmoji = '📝';
+              categoryText = 'por mejorar tu perfil';
+              break;
+            default:
+              categoryText = 'por tu progreso';
+          }
+          
+          title = `${categoryEmoji} ¡Nueva insignia desbloqueada!`;
+          message = `Has ganado "${badgeName}" ${categoryText}. +${badgeScore} MagnetoPoints`;
           type = 'achievement';
           break;
         case 'trivia_week':
@@ -1241,6 +1302,9 @@ app.put('/api/users/:userId/resume', async (req, res) => {
 
             for (const r of updated[0]) {
               console.log(`🏅 Badge otorgada: ${r.badge_name} -> ${r.progress} (score ${r.badge_score})`);
+              
+              // 🔔 Crear notificación de badge otorgada
+              await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'CV');
             }
           }
         }
@@ -1345,6 +1409,11 @@ app.post('/api/trivia-attempts', async (req, res) => {
           const qty = r.quantity;
           const awarded = r.awarded_at ? '🏆 awarded' : '';
           console.log(`✅ Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+          
+          // 🔔 Crear notificación si el badge fue otorgado
+          if (r.awarded_at) {
+            await createBadgeAwardNotification(user_id, r.badge_name, r.badge_score, 'Trivia');
+          }
         }
       }
     } catch (badgeError) {
