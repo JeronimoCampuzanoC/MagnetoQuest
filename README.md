@@ -5,7 +5,7 @@ MagnetoQuest is a web platform for job seekers, designed to encourage continuous
 ## Features
 
 - 🎮 **Gamified Experience**: Earn points, badges, and achievements while improving your professional profile
-- 📝 **CV Enhancement**: Upload and optimize your resume with AI-powered suggestions
+- 📝 **CV Enhancement**: Upload and optimize your resume
 - 🎯 **Skill Development**: Complete missions and trivia to demonstrate and improve your skills
 - 🏆 **Progress Tracking**: Monitor your professional development journey
 - 🔔 **Smart Notifications**: Stay engaged with personalized updates and reminders
