@@ -60,6 +60,50 @@ export class AuthService {
   }
 
   /**
+   * Register a new user
+   * @param name Username
+   * @param email Email (optional)
+   * @returns Promise that resolves to user data if successful
+   */
+  static async registerUser(name: string, email?: string): Promise<User | null> {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: name.trim(), email: email?.trim() }),
+      });
+
+      if (response.status === 409) {
+        // User already exists
+        const data = await response.json();
+        return {
+          id: data.user.id_app_user,
+          username: data.user.name,
+          name: data.user.name,
+          email: data.user.email
+        };
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        id: data.user.id_app_user,
+        username: data.user.name,
+        name: data.user.name,
+        email: data.user.email
+      };
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get current logged in user from localStorage
    * @returns User data if logged in, null otherwise
    */

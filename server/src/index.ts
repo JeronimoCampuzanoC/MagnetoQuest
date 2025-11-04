@@ -7,7 +7,7 @@ import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
 import triviaProxyRoutes from './routes/trivia-proxy.routes';
 import { Certificate } from './entities/Certificate';
-import { Mission, MissionCategory } from './entities/Mission';
+import { Mission, MissionCategory, MissionFrequency } from './entities/Mission';
 import { Badge } from './entities/Badge';
 import { BadgeProgress } from './entities/BadgeProgress';
 import { NotificationLog } from './entities/NotificationLog';
@@ -956,17 +956,195 @@ app.get('/api/appusers', async (_req, res) => {
 // CREAR usuario
 app.post('/api/users', async (req, res) => {
   try {
-    const { name } = req.body ?? {};
+    const { name, email } = req.body ?? {};
     if (typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'name requerido' });
     }
-    const repo = AppDataSource.getRepository(AppUser);
-    const user = repo.create({ name: name.trim() });
-    await repo.save(user);
-    res.status(201).json(user);
+
+    console.log(`👤 [Register] Creando nuevo usuario: ${name.trim()}`);
+
+    // Verificar si el usuario ya existe
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const existingUser = await userRepo.findOne({ where: { name: name.trim() } });
+    
+    if (existingUser) {
+      return res.status(409).json({ 
+        error: 'Usuario ya existe',
+        user: existingUser 
+      });
+    }
+
+    // Crear el usuario
+    const user = userRepo.create({ 
+      name: name.trim(),
+      email: email?.trim() || null
+    });
+    await userRepo.save(user);
+    console.log(`✅ [Register] Usuario creado: ${user.id_app_user}`);
+
+    // Crear user_progress inicial
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
+    const userProgress = userProgressRepo.create({
+      user_id: user.id_app_user,
+      streak: 0,
+      has_done_today: false,
+      magento_points: 0
+    });
+    await userProgressRepo.save(userProgress);
+    console.log(`✅ [Register] User progress inicializado`);
+
+    // 📧 Crear notificación de bienvenida y enviar email
+    try {
+      const notificationRepo = AppDataSource.getRepository(NotificationLog);
+      const welcomeNotification = notificationRepo.create({
+        user_id: user.id_app_user,
+        channel: 'email',
+        template: 'welcome',
+        metadata: {
+          user_name: user.name,
+          registered_at: new Date().toISOString()
+        }
+      });
+      await notificationRepo.save(welcomeNotification);
+      console.log(`📧 [Register] Notificación de bienvenida creada`);
+
+      // Enviar email de bienvenida si tiene email
+      if (user.email) {
+        const { EmailService } = await import('./services/EmailService');
+        const emailService = new EmailService();
+        await emailService.sendWelcomeEmail(user.id_app_user, user.email, user.name);
+        console.log(`📧 [Register] Email de bienvenida enviado a ${user.email}`);
+      }
+    } catch (notifError) {
+      console.error('❌ Error al crear notificación de bienvenida:', notifError);
+    }
+
+    // 🎯 Asignar misiones iniciales
+    const missionRepo = AppDataSource.getRepository(Mission);
+    const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+
+    const now = new Date();
+    const assignedMissions: any[] = [];
+
+    // 1. Asignar 1 misión DIARIA de Trivia (aleatoria)
+    const dailyTrivias = await missionRepo.find({
+      where: { 
+        frequency: MissionFrequency.DAILY,
+        is_active: true
+      }
+    });
+    
+    if (dailyTrivias.length > 0) {
+      const randomDaily = dailyTrivias[Math.floor(Math.random() * dailyTrivias.length)];
+      const dailyEndsAt = new Date(now);
+      dailyEndsAt.setHours(23, 59, 59, 999); // Vence al final del día
+      
+      const dailyProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: randomDaily.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: dailyEndsAt
+      });
+      await missionProgressRepo.save(dailyProgress);
+      assignedMissions.push({ type: 'daily', mission: randomDaily.title });
+      console.log(`🎯 [Register] Misión diaria asignada: ${randomDaily.title}`);
+    }
+
+    // 2. Asignar 1 misión FLASH (Application o Flash aleatoria)
+    const flashMissions = await missionRepo.find({
+      where: [
+        { category: MissionCategory.APPLICATION, frequency: MissionFrequency.FLASH },
+        { frequency: MissionFrequency.FLASH }
+      ]
+    });
+    
+    if (flashMissions.length > 0) {
+      const randomFlash = flashMissions[Math.floor(Math.random() * flashMissions.length)];
+      const flashProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: randomFlash.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: new Date(now.getTime() + 6 * 60 * 60 * 1000) // 6 horas
+      });
+      await missionProgressRepo.save(flashProgress);
+      assignedMissions.push({ type: 'flash', mission: randomFlash.title });
+      console.log(`⚡ [Register] Misión flash asignada: ${randomFlash.title}`);
+    }
+
+    // 3. Asignar 2 misiones SEMANALES (Trivias de categorías especiales)
+    const weeklyTriviaCategories = [
+      MissionCategory.TRIVIA_SPECIAL, 
+      MissionCategory.TRIVIA_ABILITIES, 
+      MissionCategory.TRIVIA_INTERVIEW, 
+      MissionCategory.TRIVIA_EMPLOYMENT
+    ];
+    const weeklyTrivias = await missionRepo.find({
+      where: { 
+        category: In(weeklyTriviaCategories),
+        frequency: MissionFrequency.WEEKLY
+      }
+    });
+    
+    // Seleccionar 2 aleatorias
+    const shuffledWeekly = weeklyTrivias.sort(() => 0.5 - Math.random());
+    const selectedWeekly = shuffledWeekly.slice(0, 2);
+    
+    for (const weeklyMission of selectedWeekly) {
+      const weeklyProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: weeklyMission.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 días
+      });
+      await missionProgressRepo.save(weeklyProgress);
+      assignedMissions.push({ type: 'weekly', mission: weeklyMission.title });
+      console.log(`📅 [Register] Misión semanal asignada: ${weeklyMission.title}`);
+    }
+
+    // 4. Asignar 2 misiones MENSUALES (Certificados, Proyectos, CV)
+    const monthlyCategories = [MissionCategory.CV, MissionCategory.CERTIFICATE, MissionCategory.PROJECT];
+    const monthlyMissions = await missionRepo.find({
+      where: { 
+        category: In(monthlyCategories),
+        frequency: MissionFrequency.MONTHLY
+      }
+    });
+    
+    // Seleccionar 2 aleatorias
+    const shuffledMonthly = monthlyMissions.sort(() => 0.5 - Math.random());
+    const selectedMonthly = shuffledMonthly.slice(0, 2);
+    
+    for (const monthlyMission of selectedMonthly) {
+      const monthlyProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: monthlyMission.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 días
+      });
+      await missionProgressRepo.save(monthlyProgress);
+      assignedMissions.push({ type: 'monthly', mission: monthlyMission.title });
+      console.log(`📆 [Register] Misión mensual asignada: ${monthlyMission.title}`);
+    }
+
+    console.log(`✅ [Register] Usuario ${user.name} registrado exitosamente con ${assignedMissions.length} misiones asignadas`);
+
+    res.status(201).json({
+      user,
+      missions_assigned: assignedMissions,
+      message: '¡Bienvenido a MagnetoQuest! Se te han asignado tus primeras misiones.'
+    });
+
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'DB error' });
+    console.error('❌ [Register] Error al crear usuario:', e);
+    res.status(500).json({ error: 'Error al crear usuario' });
   }
 });
 

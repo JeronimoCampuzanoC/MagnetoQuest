@@ -70,6 +70,171 @@ export class EmailService {
     }
   }
 
+  /**
+   * Envía un email de bienvenida al nuevo usuario
+   */
+  async sendWelcomeEmail(userId: string, email: string, name: string): Promise<void> {
+    if (!email) {
+      console.log('No email provided for welcome notification');
+      return;
+    }
+
+    const firstName = name.split(' ')[0];
+    const subject = '¡Bienvenido a MagnetoQuest! 🎮';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+            border-radius: 10px 10px 0 0; 
+          }
+          .content { 
+            background: #f9f9f9; 
+            padding: 30px; 
+            border-radius: 0 0 10px 10px; 
+          }
+          .welcome-title { 
+            font-size: 28px; 
+            font-weight: bold; 
+            margin: 0; 
+          }
+          .welcome-subtitle { 
+            font-size: 16px; 
+            margin-top: 10px; 
+            opacity: 0.9; 
+          }
+          .missions-box {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .mission-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+          }
+          .mission-item:last-child {
+            border-bottom: none;
+          }
+          .mission-icon {
+            display: inline-block;
+            width: 30px;
+            text-align: center;
+            font-size: 20px;
+          }
+          .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 class="welcome-title">¡Bienvenido a MagnetoQuest!</h1>
+            <p class="welcome-subtitle">Tu aventura gamificada comienza ahora 🚀</p>
+          </div>
+          
+          <div class="content">
+            <p>Hola <strong>${firstName}</strong>,</p>
+            
+            <p>¡Es un placer tenerte con nosotros! Has dado el primer paso hacia una experiencia única de aprendizaje y crecimiento profesional.</p>
+            
+            <div class="missions-box">
+              <h3 style="margin-top: 0; color: #667eea;">🎯 Tus Primeras Misiones</h3>
+              <p>Hemos preparado misiones especiales para ti:</p>
+              
+              <div class="mission-item">
+                <span class="mission-icon">⚡</span>
+                <strong>1 Misión Flash</strong> - ¡Completala rápido para ganar puntos extra!
+              </div>
+              
+              <div class="mission-item">
+                <span class="mission-icon">📅</span>
+                <strong>1 Misión Diaria</strong> - Renueva cada noche para practicar constantemente
+              </div>
+              
+              <div class="mission-item">
+                <span class="mission-icon">📊</span>
+                <strong>2 Misiones Semanales</strong> - Trivias especiales para demostrar tus habilidades
+              </div>
+              
+              <div class="mission-item">
+                <span class="mission-icon">🏆</span>
+                <strong>2 Misiones Mensuales</strong> - Proyectos, certificados y CV para destacar
+              </div>
+            </div>
+            
+            <p><strong>💎 Sistema de Recompensas:</strong></p>
+            <ul>
+              <li>Gana <strong>MagnetoPoints</strong> completando misiones</li>
+              <li>Desbloquea <strong>badges</strong> exclusivos</li>
+              <li>Mantén tu <strong>racha</strong> diaria activa</li>
+              <li>Completa misiones rápido para ganar <strong>bonos de velocidad</strong> (70%-100%)</li>
+            </ul>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/misiones" class="cta-button">
+                Ver Mis Misiones 🎮
+              </a>
+            </center>
+            
+            <p style="margin-top: 30px;">Recuerda que cada día es una oportunidad para mejorar. ¡Nos vemos en el tablero!</p>
+            
+            <p style="margin-top: 20px;">
+              Saludos,<br>
+              <strong>El equipo de MagnetoQuest</strong>
+            </p>
+          </div>
+          
+          <div class="footer">
+            <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      const mailOptions = {
+        from: process.env.FROM_EMAIL || 'noreply@magnetoquest.com',
+        to: email,
+        subject: subject,
+        html: htmlContent,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      
+      console.log(`Welcome email sent to ${email} for user "${name}"`);
+    } catch (error) {
+      console.error(`Error sending welcome email to ${email}:`, error);
+      throw error;
+    }
+  }
+
   async sendMorningReminder(userId: string, email: string, name: string): Promise<void> {
     // Validación de parámetros
     if (!name || !email || !userId) {
