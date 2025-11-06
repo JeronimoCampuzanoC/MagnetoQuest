@@ -137,17 +137,17 @@ CREATE TABLE user_progress (
 -- =========================
 -- SEED: APP DATA (10 users)
 -- =========================
-INSERT INTO app_user (name, email, sector, target_position, minimum_salary, education_level, availability, city) VALUES
-    ('Ana Torres', 'ana@example.com', 'Tecnología', 'Frontend Dev', 3500.00, 'Universitario', 'Tiempo completo', 'Bogotá'),
-    ('Luis Pérez', 'luis@example.com', 'Tecnología', 'Backend Dev', 3800.00, 'Universitario', 'Remoto', 'Medellín'),
-    ('María Gómez', 'maria@example.com', 'Salud', 'Analista Datos', 4200.00, 'Maestría', 'Híbrido', 'Cali'),
-    ('Carlos Díaz', 'carlos@example.com', 'Educación', 'PM Jr', 4000.00, 'Universitario', 'Tiempo completo', 'Barranquilla'),
-    ('Sofía Rojas', 'sofia@example.com', 'Finanzas', 'Data Eng Jr', 4500.00, 'Universitario', 'Remoto', 'Bogotá'),
-    ('Jorge Herrera', 'jorge@example.com', 'Marketing', 'UX Researcher', 3200.00, 'Universitario', 'Híbrido', 'Bucaramanga'),
-    ('Valentina Ruiz', 'valen@example.com', 'Tecnología', 'QA Analyst', 3000.00, 'Técnico', 'Tiempo completo', 'Pereira'),
-    ('Andrés Ramírez', 'andres@example.com', 'Tecnología', 'Fullstack Jr', 3600.00, 'Universitario', 'Remoto', 'Manizales'),
-    ('Camila López', 'camila@example.com', 'Diseño', 'Product Designer', 3700.00, 'Universitario', 'Híbrido', 'Cartagena'),
-    ('Diego Castillo', 'diego@example.com', 'Tecnología', 'DevOps Jr', 3900.00, 'Universitario', 'Remoto', 'Medellín');
+INSERT INTO app_user (name, email, sector, interest_field, target_position, minimum_salary, education_level, availability, city) VALUES
+    ('Ana Torres', 'ana@example.com', 'Tecnología', 'React, Vue, Angular', 'Frontend Dev', 3500.00, 'Universitario', 'Tiempo completo', 'Bogotá'),
+    ('Luis Pérez', 'luis@example.com', 'Tecnología', 'Node.js, Express, Microservicios', 'Backend Dev', 3800.00, 'Universitario', 'Remoto', 'Medellín'),
+    ('María Gómez', 'maria@example.com', 'Salud', 'SQL, Python, Power BI', 'Analista Datos', 4200.00, 'Maestría', 'Híbrido', 'Cali'),
+    ('Carlos Díaz', 'carlos@example.com', 'Educación', 'Scrum, Agile, Gestión de Equipos', 'PM Jr', 4000.00, 'Universitario', 'Tiempo completo', 'Barranquilla'),
+    ('Sofía Rojas', 'sofia@example.com', 'Finanzas', 'ETL, Apache Airflow, Big Data', 'Data Eng Jr', 4500.00, 'Universitario', 'Remoto', 'Bogotá'),
+    ('Jorge Herrera', 'jorge@example.com', 'Marketing', 'User Research, Usabilidad, Figma', 'UX Researcher', 3200.00, 'Universitario', 'Híbrido', 'Bucaramanga'),
+    ('Valentina Ruiz', 'valen@example.com', 'Tecnología', 'Testing, Cypress, Automatización', 'QA Analyst', 3000.00, 'Técnico', 'Tiempo completo', 'Pereira'),
+    ('Andrés Ramírez', 'andres@example.com', 'Tecnología', 'MERN Stack, TypeScript, APIs REST', 'Fullstack Jr', 3600.00, 'Universitario', 'Remoto', 'Manizales'),
+    ('Camila López', 'camila@example.com', 'Diseño', 'UI Design, Design Systems, Prototyping', 'Product Designer', 3700.00, 'Universitario', 'Híbrido', 'Cartagena'),
+    ('Diego Castillo', 'diego@example.com', 'Tecnología', 'Docker, Kubernetes, CI/CD', 'DevOps Jr', 3900.00, 'Universitario', 'Remoto', 'Medellín');
 
 -- =========================
 -- SEED: RESUME (10)
