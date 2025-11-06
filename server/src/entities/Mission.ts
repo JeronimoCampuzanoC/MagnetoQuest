@@ -51,7 +51,7 @@ export class Mission {
     name: 'frequency', 
     type: 'enum',
     enum: MissionFrequency,
-    default: MissionFrequency.WEEKLY
+    default: MissionFrequency.DAILY
   })
   frequency!: MissionFrequency;
 
