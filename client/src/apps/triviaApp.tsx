@@ -1,6 +1,7 @@
 // client/src/apps/triviaApp.tsx
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './triviaApp.module.css';
 import { TriviaService, TriviaTopicConfig, TriviaQuestion, EvaluationResult, TriviaProgress, TriviaResults } from '../services/triviaService';
 
@@ -22,6 +23,8 @@ export default function TriviaApp() {
   const [progress, setProgress] = useState<TriviaProgress | null>(null);
   // Resultados finales
   const [results, setResults] = useState<TriviaResults | null>(null);
+  // Indica que los resultados finales ya fueron obtenidos y están listos para ver
+  const [resultsAvailable, setResultsAvailable] = useState(false);
 
   // Estados para el flujo optimizado
   const [nextQuestionPreloaded, setNextQuestionPreloaded] = useState<TriviaQuestion | null>(null);
@@ -87,6 +90,7 @@ export default function TriviaApp() {
       setScreen('question'); // Cambia a la pantalla de preguntas
       setEvaluation(null);
       setNextQuestionPreloaded(null);
+  setResultsAvailable(false);
       console.log('✅ [TriviaApp] Trivia iniciada correctamente');
     } catch (err) {
       console.error('❌ [TriviaApp] Error al iniciar:', err);
@@ -124,7 +128,8 @@ export default function TriviaApp() {
         const finalResults = await TriviaService.getResults(sessionId);
         setResults(finalResults);
         await saveTriviaAttempt(finalResults);
-        setScreen('results'); // Cambia a la pantalla de resultados
+        // No navegamos automáticamente: dejamos que el usuario haga click en "Ver resultados"
+        setResultsAvailable(true);
         console.log('✅ [TriviaApp] Resultados obtenidos');
       } else {
         // 3️⃣ Si NO está completa, precargar siguiente pregunta en paralelo
@@ -159,9 +164,16 @@ export default function TriviaApp() {
     }
   };
 
+  // Mostrar pantalla de resultados cuando el usuario hace click
+  const handleViewResults = () => {
+    setScreen('results');
+    setResultsAvailable(false);
+  };
+
   // Continuar a la siguiente pregunta
   const handleNextQuestion = () => {
     setError(null);
+    setResultsAvailable(false);
 
     // Si ya tenemos la pregunta precargada, usarla
     if (nextQuestionPreloaded) {
@@ -192,6 +204,26 @@ export default function TriviaApp() {
     setNextQuestionPreloaded(null);
     setIsPreloading(false);
     setElapsedTime(0);
+  };
+
+  const navigate = useNavigate();
+
+  // Ir a la pantalla de Misiones y limpiar estado local
+  const handleGoToMissions = () => {
+    console.log('➡️ [TriviaApp] Navegando a Misiones...');
+    // limpiar estado local similar a reiniciar
+    setScreen('start');
+    setSessionId('');
+    setCurrentQuestion(null);
+    setUserAnswer('');
+    setEvaluation(null);
+    setProgress(null);
+    setResults(null);
+    setError(null);
+    setNextQuestionPreloaded(null);
+    setIsPreloading(false);
+    setElapsedTime(0);
+    navigate('/misiones');
   };
   const saveTriviaAttempt = async (results: TriviaResults) => {
     try {
@@ -470,20 +502,29 @@ export default function TriviaApp() {
               </>
             )}
 
-            {/* Botón para continuar */}
+            {/* Botón para continuar / ver resultados */}
             {evaluation && (
               <div className={styles.buttonContainer}>
-                <button
-                  className={`${styles.button} ${styles.buttonPrimary}`}
-                  onClick={handleNextQuestion}
-                  disabled={!nextQuestionPreloaded || isPreloading}
-                >
-                  {isPreloading
-                    ? ' Cargando...'
-                    : nextQuestionPreloaded
-                      ? ' Continuar'
-                      : ' Preparando...'}
-                </button>
+                {resultsAvailable ? (
+                  <button
+                    className={`${styles.button} ${styles.buttonPrimary}`}
+                    onClick={handleViewResults}
+                  >
+                    Ver resultados
+                  </button>
+                ) : (
+                  <button
+                    className={`${styles.button} ${styles.buttonPrimary}`}
+                    onClick={handleNextQuestion}
+                    disabled={!nextQuestionPreloaded || isPreloading}
+                  >
+                    {isPreloading
+                      ? ' Cargando...'
+                      : nextQuestionPreloaded
+                        ? ' Continuar'
+                        : ' Preparando...'}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -540,9 +581,9 @@ export default function TriviaApp() {
             <div className={styles.buttonContainer}>
               <button
                 className={`${styles.button} ${styles.buttonPrimary}`}
-                onClick={handleRestart}
+                onClick={handleGoToMissions}
               >
-                Nueva Trivia
+                Volver a misiones
               </button>
             </div>
           </div>
