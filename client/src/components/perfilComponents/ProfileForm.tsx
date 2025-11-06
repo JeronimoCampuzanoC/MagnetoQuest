@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styles from "./ProfileForm.module.css";
+import { AuthService } from '../../services/authService';
 import {
   AccordionItem,
   AccordionHeader,
@@ -25,9 +26,17 @@ export default function ProfileForm({ userId: propUserId }: { userId?: string } 
   useEffect(() => {
     let mounted = true;
     async function load() {
+      setLoading(true);
+      // clear previous values while loading to avoid showing stale data
+      if (mounted) setProfileForm({ name: '', email: '', sector: '', interest_field: '', target_position: '', minimum_salary: '', education_level: '', availability: '', city: '' });
       try {
-        // If no userId prop, fetch the list of appusers and pick the first
-        if (!userId) {
+        // Determine which user id to load:
+        // 1) prefer propUserId (explicit)
+        // 2) then current logged in user (AuthService)
+        // 3) finally fallback to first seeded user from /api/appusers
+        let uid = propUserId ?? AuthService.getCurrentUserId() ?? null;
+
+        if (!uid) {
           const resp = await fetch('/api/appusers');
           if (!resp.ok) throw new Error('failed to fetch users');
           const users = await resp.json();
@@ -35,42 +44,27 @@ export default function ProfileForm({ userId: propUserId }: { userId?: string } 
             if (mounted) setLoading(false);
             return;
           }
-          if (mounted) setUserId(users[0].id_app_user);
-          // continue to fetch that user below
-          const uid = users[0].id_app_user;
-          const r2 = await fetch(`/api/users/${uid}`);
-          if (!r2.ok) throw new Error('failed to fetch user');
-          const u = await r2.json();
-          if (!mounted) return;
-          setProfileForm({
-            name: u.name || '',
-            email: u.email || '',
-            sector: u.sector || '',
-            interest_field: u.interest_field || '',
-            target_position: u.target_position || '',
-            minimum_salary: u.minimum_salary != null ? String(u.minimum_salary) : '',
-            education_level: u.education_level || '',
-            availability: u.availability || '',
-            city: u.city || ''
-          });
-        } else {
-          // prop provided
-          const r = await fetch(`/api/users/${userId}`);
-          if (!r.ok) throw new Error('failed to fetch user');
-          const u = await r.json();
-          if (!mounted) return;
-          setProfileForm({
-            name: u.name || '',
-            email: u.email || '',
-            sector: u.sector || '',
-            interest_field: u.interest_field || '',
-            target_position: u.target_position || '',
-            minimum_salary: u.minimum_salary != null ? String(u.minimum_salary) : '',
-            education_level: u.education_level || '',
-            availability: u.availability || '',
-            city: u.city || ''
-          });
+          uid = users[0].id_app_user;
         }
+
+        // remember which user we're showing
+        if (mounted) setUserId(uid);
+
+        const r = await fetch(`/api/users/${uid}`);
+        if (!r.ok) throw new Error('failed to fetch user');
+        const u = await r.json();
+        if (!mounted) return;
+        setProfileForm({
+          name: u.name || '',
+          email: u.email || '',
+          sector: u.sector || '',
+          interest_field: u.interest_field || '',
+          target_position: u.target_position || '',
+          minimum_salary: u.minimum_salary != null ? String(u.minimum_salary) : '',
+          education_level: u.education_level || '',
+          availability: u.availability || '',
+          city: u.city || ''
+        });
       } catch (err) {
         console.error('Error pre-filling profile form', err);
       } finally {

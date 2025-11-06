@@ -241,7 +241,7 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
       userProgress = userProgressRepo.create({
         user_id: userId,
         streak: 1,
-        has_done_today: false,
+        has_done_today: true,
         // Puntos por completar trivia + score opcional enviado por el cliente
         magento_points: 10 + (scoreValue > 0 ? scoreValue : 0)
       });
@@ -249,7 +249,7 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
       // Si ya completó hoy, no incrementar racha
       if (!userProgress.has_done_today) {
         userProgress.streak += 1;
-        userProgress.has_done_today = false;
+        userProgress.has_done_today = true;
         userProgress.magento_points += 10;
       }
 
@@ -1165,6 +1165,28 @@ app.get('/api/users/:userId', async (req, res) => {
     res.json(user);
   } catch (e) {
     console.error('Error fetching user:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Obtener intereses del usuario (parsed from interest_field)
+app.get('/api/users/:userId/interests', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const user = await userRepo.findOne({ where: { id_app_user: userId } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // interest_field stored as comma separated text in DB
+    const raw: string | null = (user as any).interest_field ?? null;
+    const interests = raw
+      ? raw.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : [];
+
+    // Return interests plus sector so frontend can map cards by sector
+    res.json({ interests, sector: (user as any).sector ?? null });
+  } catch (e) {
+    console.error('Error fetching user interests:', e);
     res.status(500).json({ error: 'DB error' });
   }
 });
