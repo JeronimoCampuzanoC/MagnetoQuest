@@ -33,7 +33,7 @@ export default function TriviaApp() {
     'Genera preguntas avanzadas sobre desarrollo backend, incluyendo arquitecturas de software, patrones de diseño, optimización de bases de datos, APIs RESTful, microservicios, y mejores prácticas de desarrollo.'
   );
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [totalQuestions] = useState(2);
+  const [totalQuestions] = useState(1);
 
   // Estados para llevar el tiempo
   const [elapsedTime, setElapsedTime] = useState(0);

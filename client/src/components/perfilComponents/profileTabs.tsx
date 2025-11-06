@@ -3,9 +3,14 @@ import styles from "./profileTabs.module.css";
 import ProjectCertificate from "./ProjectCertificate";
 import PerformanceTrivia from "./PerformanceTrivia";
 import CVForm from "./CVForm";
+import ProfileForm from "./ProfileForm";
 import {
   TabContent, TabPane,
-  Card, CardBody
+  Card, CardBody,
+  Accordion,
+  AccordionBody,
+  AccordionHeader,
+  AccordionItem,
 } from "reactstrap";
 
 type Tab = {
@@ -23,6 +28,14 @@ const TABS: Tab[] = [
 
 export default function ProfileTabs() {
   const [active, setActive] = useState("perfil");
+  const [open, setOpen] = useState('1');
+  const toggle = (id: React.SetStateAction<string>) => {
+    if (open === id) {
+      setOpen('');
+    } else {
+      setOpen(id);
+    }
+  };
 
   return (
     <>
@@ -44,13 +57,27 @@ export default function ProfileTabs() {
       {/* Contenido de cada tab */}
       <TabContent activeTab={active}>
         <TabPane tabId="perfil">
-          <Card>
-            <CardBody>
-              <h5 className="mb-3">Editar Perfil</h5>
-              {/* aquí tu formulario de perfil */}
-              <p>Formulario con datos personales, foto, etc.</p>
-            </CardBody>
-          </Card>
+          <Accordion open={open} toggle={toggle}>
+            <ProfileForm />
+            <AccordionItem>
+              <AccordionHeader targetId="2">✅ Hazte visible para las empresas</AccordionHeader>
+              <AccordionBody accordionId="2">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur efficitur, orci at euismod rhoncus, lacus leo sodales orci, ac tincidunt nulla nulla at quam. Nunc sed egestas mi. Integer quis urna blandit, gravida mauris vel, volutpat dolor. Phasellus pellentesque massa a commodo varius.
+              </AccordionBody>
+            </AccordionItem>
+            <AccordionItem>
+              <AccordionHeader targetId="3">✅ Resalta entre los demás Candidatos</AccordionHeader>
+              <AccordionBody accordionId="3">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur efficitur, orci at euismod rhoncus, lacus leo sodales orci, ac tincidunt nulla nulla at quam. Nunc sed egestas mi. Integer quis urna blandit, gravida mauris vel, volutpat dolor. Phasellus pellentesque massa a commodo varius.
+              </AccordionBody>
+            </AccordionItem>
+            <AccordionItem>
+              <AccordionHeader targetId="4">✅ Conviertete en un Candidato TOP de Magneto</AccordionHeader>
+              <AccordionBody accordionId="4">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur efficitur, orci at euismod rhoncus, lacus leo sodales orci, ac tincidunt nulla nulla at quam. Nunc sed egestas mi. Integer quis urna blandit, gravida mauris vel, volutpat dolor. Phasellus pellentesque massa a commodo varius.
+              </AccordionBody>
+            </AccordionItem>
+          </Accordion>
         </TabPane>
 
         <TabPane tabId="cv">
@@ -80,7 +107,7 @@ export default function ProfileTabs() {
             </CardBody>
           </Card>
         </TabPane>
-      </TabContent>
+      </TabContent >
     </>
   );
 }

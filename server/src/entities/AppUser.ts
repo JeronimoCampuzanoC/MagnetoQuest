@@ -21,6 +21,9 @@ export class AppUser {
   @Column({ name: 'sector', type: 'text', nullable: true })
   sector!: string | null;
 
+  @Column({ name: 'interest_field', type: 'text', nullable: true })
+  interest_field!: string | null;
+
   @Column({ name: 'target_position', type: 'text', nullable: true })
   target_position!: string | null;
 

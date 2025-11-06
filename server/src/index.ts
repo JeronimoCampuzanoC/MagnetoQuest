@@ -185,9 +185,13 @@ app.get('/api/users/:userId/progress', async (req, res) => {
   console.log(`📦 Actualizados ${updatedMpRows.length} badge_progress(es) de MagnetoPoints para user ${userId}`);
   // Debug: inspect returned shape and badge_score
   console.log(updatedMpRows);
-  try { console.log(updatedMpRows[0][0].badge_score); } catch (e) { console.log('updatedMpRows[0].badge_score ->', (e as any)?.message ?? e); }
+  try { console.log(updatedMpRows[0] && updatedMpRows[0][0] && updatedMpRows[0][0].badge_score); } catch (e) { console.log('updatedMpRows[0].badge_score ->', (e as any)?.message ?? e); }
       if (updatedMpRows && updatedMpRows.length) {
-        const totalToAdd = updatedMpRows[0][0].badge_score
+        // normalize rows (some drivers return [[rows]])
+        const rows: any[] = Array.isArray(updatedMpRows) && Array.isArray(updatedMpRows[0]) ? updatedMpRows[0] : (Array.isArray(updatedMpRows) ? updatedMpRows : []);
+        // only badges that were actually awarded in this update should give points
+        const awardedRows = rows.filter(r => r && r.awarded_at);
+        const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
         if (totalToAdd > 0) {
           await AppDataSource.query(
             `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
@@ -196,13 +200,13 @@ app.get('/api/users/:userId/progress', async (req, res) => {
           console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges MagnetoPoints al usuario ${userId}`);
         }
 
-        for (const r of updatedMpRows[0]) {
+        for (const r of rows) {
           const name = r.badge_name || r.badge_id;
           const progress = r.progress;
           const qty = r.quantity;
           const awarded = r.awarded_at ? '🏆 awarded' : '';
           console.log(`✅ MagnetoPoints Badge "${name}" -> ${progress}/${qty} ${awarded}`);
-          
+
           // 🔔 Crear notificación si el badge fue otorgado
           if (r.awarded_at) {
             await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'MagnetoPoints');
@@ -374,9 +378,11 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
   console.log(`📈 Actualizados ${updatedStreakRows.length} badge_progress(es) de Streak para user ${userId}`);
   // Debug: inspect returned shape and badge_score
   console.log(updatedStreakRows);
-  try { console.log(updatedStreakRows[0][0].badge_score); } catch (e) { console.log('updatedStreakRows[0].badge_score ->', (e as any)?.message ?? e); }
+  try { console.log(updatedStreakRows[0] && updatedStreakRows[0][0] && updatedStreakRows[0][0].badge_score); } catch (e) { console.log('updatedStreakRows[0].badge_score ->', (e as any)?.message ?? e); }
       if (updatedStreakRows && updatedStreakRows.length) {
-        const totalToAdd = updatedStreakRows[0][0].badge_score;
+        const rows: any[] = Array.isArray(updatedStreakRows) && Array.isArray(updatedStreakRows[0]) ? updatedStreakRows[0] : (Array.isArray(updatedStreakRows) ? updatedStreakRows : []);
+        const awardedRows = rows.filter(r => r && r.awarded_at);
+        const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
         if (totalToAdd > 0) {
           await AppDataSource.query(
             `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
@@ -385,13 +391,13 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
           console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges Streak al usuario ${userId}`);
         }
 
-        for (const r of updatedStreakRows[0]) {
+        for (const r of rows) {
           const name = r.badge_name || r.badge_id;
           const progress = r.progress;
           const qty = r.quantity;
           const awarded = r.awarded_at ? '🏆 awarded' : '';
           console.log(`✅ Streak Badge "${name}" -> ${progress}/${qty} ${awarded}`);
-          
+
           // 🔔 Crear notificación si el badge fue otorgado
           if (r.awarded_at) {
             await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'Streak');
@@ -1148,6 +1154,57 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+// ENDPOINTS PARA GESTIÓN DE USUARIOS (GET / PUT)
+// Obtener usuario por id
+app.get('/api/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const user = await userRepo.findOne({ where: { id_app_user: userId } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(user);
+  } catch (e) {
+    console.error('Error fetching user:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Actualizar usuario (parcial)
+app.put('/api/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const payload = req.body ?? {};
+
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const user = await userRepo.findOne({ where: { id_app_user: userId } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Campos permitidos para actualizar
+    const allowed = [
+      'name', 'email', 'sector', 'interest_field', 'target_position',
+      'minimum_salary', 'education_level', 'availability', 'city'
+    ];
+
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        // handle numeric conversion for minimum_salary
+        if (key === 'minimum_salary') {
+          const v = payload.minimum_salary;
+          (user as any).minimum_salary = (v === null || v === '') ? null : Number(v);
+        } else {
+          (user as any)[key] = payload[key] === '' ? null : payload[key];
+        }
+      }
+    }
+
+    await userRepo.save(user);
+    res.json(user);
+  } catch (e) {
+    console.error('Error updating user:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 // CREAR proyecto
 app.post('/api/projects', async (req, res) => {
   try {
@@ -1763,9 +1820,11 @@ app.put('/api/users/:userId/resume', async (req, res) => {
             [userId, c.badgeName]
           );
           console.log(updated)
-          console.log(updated[0][0].badge_score)
+          try { console.log(updated[0] && updated[0][0] && updated[0][0].badge_score); } catch (e) { console.log('updated[0].badge_score ->', (e as any)?.message ?? e); }
           if (updated && updated.length) {
-            const totalToAdd = updated[0][0].badge_score
+            const rows: any[] = Array.isArray(updated) && Array.isArray(updated[0]) ? updated[0] : (Array.isArray(updated) ? updated : []);
+            const awardedRows = rows.filter(r => r && r.awarded_at);
+            const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
             if (totalToAdd > 0) {
               await AppDataSource.query(
                 `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
@@ -1774,11 +1833,13 @@ app.put('/api/users/:userId/resume', async (req, res) => {
               console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges CV al usuario ${userId}`);
             }
 
-            for (const r of updated[0]) {
+            for (const r of rows) {
               console.log(`🏅 Badge otorgada: ${r.badge_name} -> ${r.progress} (score ${r.badge_score})`);
-              
+
               // 🔔 Crear notificación de badge otorgada
-              await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'CV');
+              if (r.awarded_at) {
+                await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'CV');
+              }
             }
           }
         }
@@ -1865,10 +1926,12 @@ app.post('/api/trivia-attempts', async (req, res) => {
   console.log(`📊 Actualizados ${updatedRows.length} badge_progress(es) de Trivia para user ${user_id}`);
   // Debug: inspect returned shape and badge_score
   console.log(updatedRows);
-  try { console.log(updatedRows[0][0].badge_score); } catch (e) { console.log('updatedRows[0].badge_score ->', (e as any)?.message ?? e); }
+  try { console.log(updatedRows[0] && updatedRows[0][0] && updatedRows[0][0].badge_score); } catch (e) { console.log('updatedRows[0].badge_score ->', (e as any)?.message ?? e); }
 
       if (updatedRows && updatedRows.length) {
-        const totalToAdd = updatedRows[0][0].badge_score
+        const rows: any[] = Array.isArray(updatedRows) && Array.isArray(updatedRows[0]) ? updatedRows[0] : (Array.isArray(updatedRows) ? updatedRows : []);
+        const awardedRows = rows.filter(r => r && r.awarded_at);
+        const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
         if (totalToAdd > 0) {
           await AppDataSource.query(
             `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
@@ -1877,13 +1940,13 @@ app.post('/api/trivia-attempts', async (req, res) => {
           console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges Trivia al usuario ${user_id}`);
         }
 
-        for (const r of updatedRows[0]) {
+        for (const r of rows) {
           const name = r.badge_name || r.badge_id;
           const progress = r.progress;
           const qty = r.quantity;
           const awarded = r.awarded_at ? '🏆 awarded' : '';
           console.log(`✅ Badge "${name}" -> ${progress}/${qty} ${awarded}`);
-          
+
           // 🔔 Crear notificación si el badge fue otorgado
           if (r.awarded_at) {
             await createBadgeAwardNotification(user_id, r.badge_name, r.badge_score, 'Trivia');

@@ -1,0 +1,4 @@
+.texto_secundario {
+  font-size: 0.9em;     /* un poco más pequeño que el tamaño normal */
+  color: #777;          /* gris medio, puedes ajustar (#666, #888, etc.) */
+}
