@@ -5,18 +5,17 @@ CREATE TYPE mission_status AS ENUM ('not_started', 'in_progress', 'completed');
 
 CREATE TYPE difficulty     AS ENUM ('easy', 'medium', 'hard');
 
-CREATE TYPE mission_category AS ENUM ('Trivia', 'Certificate', 'Project', 'CV', 'Application', 'Trivia_Special', 'Trivia_Abilities', 'Trivia_Interview', 'Trivia_Employment');
-
-CREATE TYPE mission_frequency AS ENUM ('daily', 'flash', 'weekly', 'monthly');
+CREATE TYPE mission_category AS ENUM ('Trivia', 'Certificate', 'Project', 'CV');
 
 CREATE TYPE category_type AS ENUM ('Trivia', 'Streak', 'MagnetoPoints', 'CV');
 
+-- =========================
 CREATE TABLE app_user (
     id_app_user UUID PRIMARY KEY DEFAULT gen_random_uuid (),
     name TEXT NOT NULL,
     email TEXT,
     sector TEXT,
-    interest_field TEXT,
+    interest_field TEXT,  -- tema1,tema2,tema3, tema4
     target_position TEXT,
     minimum_salary NUMERIC(12, 2),
     education_level TEXT,
@@ -81,7 +80,6 @@ CREATE TABLE mission (
     title TEXT NOT NULL,
     description TEXT,
     category mission_category,
-    frequency mission_frequency NOT NULL DEFAULT 'daily',
     xp_reward INT NOT NULL DEFAULT 10 CHECK (xp_reward >= 0),
     objective INT NOT NULL DEFAULT 1 CHECK (objective >= 1),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -265,38 +263,41 @@ INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at) VALUES
 -- =========================
 -- SEED: MISSION (10)
 -- =========================
-INSERT INTO mission (title, description, category, frequency, xp_reward, objective, is_active) VALUES
-    -- Misiones Diarias - Trivia
-    ('Trivia Diaria', 'Completa una trivia diaria para mantener tu racha activa', 'Trivia', 'daily', 30, 1, TRUE),
-    ('Práctica con Trivias', 'Responde 2 trivias en un día', 'Trivia', 'daily', 50, 2, TRUE),
-    
-    -- Misiones Relámpago - Aplicaciones (MagnetoPoints por velocidad)
-    ('Aplicación Express', 'Te están buscando y aún no lo sabes, aplica a JR RPA DEVELOPER ENGLISH C1 en Solvo', 'Application', 'flash', 100, 1, TRUE),
-    ('Sprint de Aplicaciones', 'Esta empresa vio tu perfil y dijo: Queremos a alguien así. No dejes que otro se siente en esa silla. Mira la vacante antes de que cierre Ingeniero Especialista Azure Devops SYNERGY TECHNOLOGY AND PROCESS CONSULTING S A S $5,800,000', 'Application', 'flash', 100, 1, TRUE),
-
-    -- Misiones Semanales - Trivias Especiales por Categoría
-    ('Trivia de Habilidades', 'Completa una trivia sobre habilidades técnicas', 'Trivia_Abilities', 'weekly', 75, 1, TRUE),
-    ('Trivia de Entrevistas', 'Practica preguntas de entrevistas con trivia', 'Trivia_Interview', 'weekly', 75, 1, TRUE),
-    ('Trivia de Empleo', 'Resuelve una trivia sobre el mundo laboral', 'Trivia_Employment', 'weekly', 75, 1, TRUE),
-    
-    -- Misiones Mensuales - Desarrollo Profesional
-    ('Certificado del Mes', 'Agrega un nuevo certificado a tu perfil', 'Certificate', 'monthly', 150, 1, TRUE),
-    ('Proyecto Destacado', 'Publica un proyecto en tu portafolio', 'Project', 'monthly', 150, 1, TRUE),
-    ('Actualiza tu CV', 'Mejora tu hoja de vida con nueva información', 'CV', 'monthly', 150, 1, TRUE);
+INSERT INTO mission (title, description, category, xp_reward, objective, is_active) VALUES
+    ('Completa tu perfil', 'Añade tu información básica', 'CV', 20, 1, TRUE),
+    ('Sube un proyecto', 'Publica tu primer proyecto', 'Project', 15, 1, TRUE),
+    ('Consigue 3 certs', 'Agrega 3 certificados', 'Certificate', 40, 3, TRUE),
+    ('Responde 5 trivias', 'Practica con trivias', 'Trivia', 30, 5, TRUE),
+    ('Mejora CV', 'Agrega experiencia al CV', 'CV', 25, 1, TRUE),
+    ('Portfolio', 'Crea tu portafolio online', 'Project', 35, 1, TRUE),
+    ('Refactor perfil', 'Completa campos avanzados', 'CV', 15, 1, TRUE),
+    ('Habilidades', 'Lista 5 habilidades clave', 'CV', 10, 5, TRUE),
+    ('CI/CD básico', 'Configura pipelines', 'Project', 50, 1, TRUE),
+    ('Soft skills', 'Completa cuestionario soft skills', 'CV', 10, 1, TRUE);
 
 -- =========================
--- SEED: USER_MISSION_PROGRESS (4)  (pares únicos)
+-- SEED: USER_MISSION_PROGRESS (10)  (pares únicos)
 -- =========================
 INSERT INTO user_mission_progress (user_id, mission_id, status, progress, starts_at, ends_at, completed_at) VALUES
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 0), 'in_progress', 40, NOW() - INTERVAL '7 days', NOW() + INTERVAL '23 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 1), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 1), 'completed', 100, NOW() - INTERVAL '6 days', NOW() + INTERVAL '24 days', NOW() - INTERVAL '1 day'),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 2), 'not_started', 0, NOW() - INTERVAL '5 days', NOW() + INTERVAL '35 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 3), 'in_progress', 70, NOW() - INTERVAL '4 days', NOW() + INTERVAL '16 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 4), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 4), 'in_progress', 30, NOW() - INTERVAL '10 days', NOW() + INTERVAL '23 hours', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 5), 'not_started', 0, NOW() - INTERVAL '12 days', NOW() + INTERVAL '48 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 6), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 6), 'completed', 100, NOW() - INTERVAL '2 days', NOW() + INTERVAL '13 days', NOW() - INTERVAL '2 days'),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 7), 'in_progress', 55, NOW() - INTERVAL '3 days', NOW() + INTERVAL '9 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 8), 'in_progress', 20, NOW() - INTERVAL '8 days', NOW() + INTERVAL '37 days', NULL),
+    -- ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9), (SELECT mission_id FROM mission ORDER BY created_at LIMIT 1 OFFSET 9), 'not_started', 0, NOW() - INTERVAL '1 days', NOW() + INTERVAL '12 hours', NULL),
     -- 🎯 MISIONES DE ANA TORRES (una de cada categoría, todas en progreso)
-    -- Trivia Diaria: "Trivia Diaria" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Trivia Diaria'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
-    -- Application: "Aplicación Express" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Aplicación Express'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
-    -- Certificate: "Certificado del Mes" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Certificado del Mes'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '27 days', NULL),
-    -- Trivia Weekly: "Trivia de Habilidades" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Trivia de Habilidades'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '4 days', NULL);
+    -- CV: "Completa tu perfil" (0 de 1)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Completa tu perfil'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
+    -- Project: "Sube un proyecto" (0 de 1)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Sube un proyecto'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
+    -- Certificate: "Consigue 3 certs" (1 de 3)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Consigue 3 certs'), 'in_progress', 1, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
+    -- Trivia: "Responde 5 trivias" (2 de 5)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Responde 5 trivias'), 'in_progress', 2, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL);
 
 -- =========================
 -- SEED: TRIVIA_ATTEMPT (10)  (pares únicos user/question)
