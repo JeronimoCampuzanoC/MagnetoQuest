@@ -333,15 +333,15 @@ INSERT INTO notification_log (user_id, channel, template, sent_at, metadata) VAL
 -- SEED: USER_PROGRESS (10)
 -- =========================
 INSERT INTO user_progress (user_id, streak, has_done_today, magento_points, created_at, updated_at) VALUES
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0), 5, TRUE, 150, NOW() - INTERVAL '10 days', NOW()),
+    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 0), 5, FALSE, 150, NOW() - INTERVAL '10 days', NOW()),
     ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 1), 3, FALSE, 120, NOW() - INTERVAL '9 days', NOW() - INTERVAL '1 day'),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2), 8, TRUE, 220, NOW() - INTERVAL '8 days', NOW()),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3), 12, TRUE, 350, NOW() - INTERVAL '7 days', NOW()),
+    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 2), 8, FALSE, 220, NOW() - INTERVAL '8 days', NOW()),
+    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 3), 12, FALSE, 350, NOW() - INTERVAL '7 days', NOW()),
     ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 4), 1, FALSE, 45, NOW() - INTERVAL '6 days', NOW() - INTERVAL '2 days'),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5), 7, TRUE, 180, NOW() - INTERVAL '5 days', NOW()),
+    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 5), 7, FALSE, 180, NOW() - INTERVAL '5 days', NOW()),
     ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 6), 15, FALSE, 420, NOW() - INTERVAL '4 days', NOW() - INTERVAL '1 day'),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7), 4, TRUE, 95, NOW() - INTERVAL '3 days', NOW()),
-    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8), 9, TRUE, 275, NOW() - INTERVAL '2 days', NOW()),
+    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 7), 4, FALSE, 95, NOW() - INTERVAL '3 days', NOW()),
+    ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 8), 9, FALSE, 275, NOW() - INTERVAL '2 days', NOW()),
     ((SELECT id_app_user FROM app_user ORDER BY name LIMIT 1 OFFSET 9), 2, FALSE, 60, NOW() - INTERVAL '1 days', NOW() - INTERVAL '3 days');
 
 -- ========================= Test badge category_type trivia

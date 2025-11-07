@@ -19,9 +19,9 @@ type Item = {
 };
 
 const DATA: Item[] = [
-  { id: 1, title: "Habilidades Blandas", type :"Habilidades", description: "Situacionales sobre habilidades blandas, con viñetas realistas que evalúen toma de decisiones, comunicación asertiva, manejo de conflictos, liderazgo, colaboración, empatía, feedback efectivo y priorización bajo presión." },
-  { id: 2, title: "Entrevistas", type :"Entrevistas", description: "Preparación de entrevistas con énfasis en {ROL_O_TÓPICO} (p. ej., comportamentales, liderazgo, negociación salarial, métricas de impacto, comunicación ejecutiva), usando ejemplos prácticos." },
-  { id: 3, title: "Empleo Colombiano", type :"Empleo", description: "Genera preguntas situacionales sobre temas laborales en Colombia (por ejemplo, cómo pedir vacaciones, qué pasa con la prima, qué hacer si no me afilian), usando casos cotidianos y opciones comprensibles." },
+  { id: 1, title: "Habilidades Blandas", type: "Habilidades", description: "Situacionales sobre habilidades blandas, con viñetas realistas que evalúen toma de decisiones, comunicación asertiva, manejo de conflictos, liderazgo, colaboración, empatía, feedback efectivo y priorización bajo presión." },
+  { id: 2, title: "Entrevistas", type: "Entrevistas", description: "Preparación de entrevistas con énfasis en {ROL_O_TÓPICO} (p. ej., comportamentales, liderazgo, negociación salarial, métricas de impacto, comunicación ejecutiva), usando ejemplos prácticos." },
+  { id: 3, title: "Empleo Colombiano", type: "Empleo", description: "Genera preguntas situacionales sobre temas laborales en Colombia (por ejemplo, cómo pedir vacaciones, qué pasa con la prima, qué hacer si no me afilian), usando casos cotidianos y opciones comprensibles." },
 ];
 
 
@@ -76,7 +76,7 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = 
   }, []);
 
   // Función que maneja el click en una tarjeta
-  const handleCardClick = async (title: string, description: string) => {
+  const handleCardClick = async (title: string, type: string, description: string) => {
     // Si ya hizo la trivia hoy, mostramos un popup y no dejamos continuar
     if (hasDoneToday === true) {
       setShowModal(true);
@@ -94,7 +94,7 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = 
           if (r.ok) {
             const data = await r.json();
             interests = Array.isArray(data?.interests) ? data.interests : [];
-            console.log("Intereses del Usuario:  ",interests)
+            console.log("Intereses del Usuario:  ", interests)
           } else {
             console.warn('No se pudieron obtener intereses del usuario', r.status);
           }
@@ -107,11 +107,13 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = 
       const triviaConfig = {
         userId,
         title,
+        type,
         description
       };
 
       // Guardar en localStorage
       localStorage.setItem('triviaConfig', JSON.stringify(triviaConfig));
+      localStorage.setItem('triviaType', "1");
 
       console.log(' Configuración guardada:', triviaConfig);
 
@@ -146,6 +148,7 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = 
           <SwiperSlide key={item.id} className={styles.slide}>
             <CardSlide
               title={item.title}
+              type={item.type}
               description={item.description}
               image="https://picsum.photos/200/200"
               onClick={handleCardClick}
