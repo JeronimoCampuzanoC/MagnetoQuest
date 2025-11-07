@@ -343,14 +343,16 @@ export default function TriviaApp() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>¿Qué tenemas se abordará?</label>
-                <textarea
+                <label className={styles.formLabel}>¿Qué tema se abordará?</label>
+                {/* Mostrar la descripción proveniente de la otra vista como texto estático */}
+                <div
                   className={styles.formTextarea}
-                  value={topicDescription}
-                  onChange={(e) => setTopicDescription(e.target.value)}
-                  placeholder="Describe qué tipo de preguntas quieres..."
-                  readOnly
-                />
+                  aria-readonly="true"
+                  title={topicDescription}
+                  style={{ whiteSpace: 'pre-wrap' }}
+                >
+                  <>¡Estás a punto de embarcarte en un desafío increíble! Prepárate para poner a prueba tus conocimientos sobre <b>{topicDescription}</b>. Responde a los retos que hemos preparado para ti, ¡y demuestra todo lo que sabes! ¿Te atreves a superar cada pregunta?</>
+                </div>
               </div>
 
               <div className={styles.formGroup}>
@@ -406,7 +408,7 @@ export default function TriviaApp() {
               </div>
               <div className={styles.progressText}>
                 <span>
-                  Preguntas respondidas {progress.current} de {progress.total}
+                  Preguntas completadas {progress.current} de 5
                 </span>
                 <span>
                   Score: {progress.score}/{progress.maxScore} ({progress.percentage}%)

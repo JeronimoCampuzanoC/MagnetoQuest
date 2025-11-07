@@ -249,7 +249,7 @@ ${answersResume}
 - Deduce el dominio principal usando "${this.topic.name}" + los conceptos y títulos visibles en ${answersResume} .
 - Si hay ambigüedad, elige el dominio con más señales en ${answersResume}. No inventes datos.
 
-2) Redacción del feedback (130–170 palabras), en prosa natural (sin viñetas):
+2) Redacción del feedback (MAXIMO 100 a 120 palabras), en prosa natural (sin viñetas):
 - **Saludo amigable** breve.
 - **Fortalezas —** Nombra explícitamente los temas/preguntas acertadas y explica qué comprensión demuestran, citando conceptos reales detectados.
 - **Cómo mejorar —** Señala los temas/preguntas con dificultad y propone 2 acciones concretas **adaptadas al dominio detectado** (p. ej., “practica role-plays de escucha activa”, “usa EXPLAIN para optimizar consultas”, “traza una línea de tiempo de los hechos clave”). Evita vaguedades.
@@ -284,7 +284,7 @@ IMPORTANTE: Aunque el estudiante haya tenido bajo puntaje, el feedback debe ser 
           }
         ],
         temperature: 0.7,  // Más creativo para el feedback
-        max_tokens: 800    // Suficiente para 200-300 palabras
+        max_tokens: 600    // Suficiente para 200-300 palabras
       });
 
       const elapsed = Date.now() - startTime;
@@ -407,7 +407,7 @@ IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido en este formato exac
 
 {
   "pregunta": "Tu pregunta aquí",
-  "respuestaEsperada": "La respuesta esperada detallada",
+  "respuestaEsperada": "La respuesta esperada de maximo 70 palabras, pero completa (detallada)",
   "pista": "Una pista útil opcional o null si no aplica"
 }
 
