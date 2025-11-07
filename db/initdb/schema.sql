@@ -285,18 +285,20 @@ INSERT INTO mission (title, description, category, frequency, xp_reward, objecti
     ('Actualiza tu CV', 'Mejora tu hoja de vida con nueva información', 'CV', 'monthly', 150, 1, TRUE);
 
 -- =========================
--- SEED: USER_MISSION_PROGRESS (4)  (pares únicos)
+-- SEED: USER_MISSION_PROGRESS (6)  (pares únicos)
 -- =========================
 INSERT INTO user_mission_progress (user_id, mission_id, status, progress, starts_at, ends_at, completed_at) VALUES
-    -- 🎯 MISIONES DE ANA TORRES (una de cada categoría, todas en progreso)
-    -- Trivia Diaria: "Trivia Diaria" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Trivia Diaria'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
-    -- Application: "Aplicación Express" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Aplicación Express'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 days', NULL),
-    -- Certificate: "Certificado del Mes" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Certificado del Mes'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '27 days', NULL),
-    -- Trivia Weekly: "Trivia de Habilidades" (0 de 1)
-    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Trivia de Habilidades'), 'in_progress', 0, NOW() - INTERVAL '3 days', NOW() + INTERVAL '4 days', NULL);
+    -- 🎯 MISIONES INICIALES DE ANA TORRES (layout de registro)
+    -- 1 Misión Diaria (Trivia)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Trivia Diaria'), 'not_started', 0, NOW(), NOW() + INTERVAL '1 day', NULL),
+    -- 1 Misión Flash/Relámpago (Aplicaciones - MagnetoPoints)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Aplicación Express'), 'not_started', 0, NOW(), NOW() + INTERVAL '3 hours', NULL),
+    -- 2 Misiones Semanales (Trivias Especiales)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Trivia de Habilidades'), 'not_started', 0, NOW(), NOW() + INTERVAL '7 days', NULL),
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Trivia de Entrevistas'), 'not_started', 0, NOW(), NOW() + INTERVAL '7 days', NULL),
+    -- 2 Misiones Mensuales (Desarrollo Profesional)
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Certificado del Mes'), 'not_started', 0, NOW(), NOW() + INTERVAL '30 days', NULL),
+    ((SELECT id_app_user FROM app_user WHERE name = 'Ana Torres'), (SELECT mission_id FROM mission WHERE title = 'Proyecto Destacado'), 'not_started', 0, NOW(), NOW() + INTERVAL '30 days', NULL);
 
 -- =========================
 -- SEED: TRIVIA_ATTEMPT (10)  (pares únicos user/question)
