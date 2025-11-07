@@ -70,6 +70,171 @@ export class EmailService {
     }
   }
 
+  /**
+   * Envía un email de bienvenida al nuevo usuario
+   */
+  async sendWelcomeEmail(userId: string, email: string, name: string): Promise<void> {
+    if (!email) {
+      console.log('No email provided for welcome notification');
+      return;
+    }
+
+    const firstName = name.split(' ')[0];
+    const subject = '¡Bienvenido a MagnetoQuest! 🎮';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+            border-radius: 10px 10px 0 0; 
+          }
+          .content { 
+            background: #f9f9f9; 
+            padding: 30px; 
+            border-radius: 0 0 10px 10px; 
+          }
+          .welcome-title { 
+            font-size: 28px; 
+            font-weight: bold; 
+            margin: 0; 
+          }
+          .welcome-subtitle { 
+            font-size: 16px; 
+            margin-top: 10px; 
+            opacity: 0.9; 
+          }
+          .missions-box {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .mission-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+          }
+          .mission-item:last-child {
+            border-bottom: none;
+          }
+          .mission-icon {
+            display: inline-block;
+            width: 30px;
+            text-align: center;
+            font-size: 20px;
+          }
+          .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 class="welcome-title">¡Bienvenido a MagnetoQuest!</h1>
+            <p class="welcome-subtitle">Tu aventura gamificada comienza ahora 🚀</p>
+          </div>
+          
+          <div class="content">
+            <p>Hola <strong>${firstName}</strong>,</p>
+            
+            <p>¡Es un placer tenerte con nosotros! Has dado el primer paso hacia una experiencia única de aprendizaje y crecimiento profesional.</p>
+            
+            <div class="missions-box">
+              <h3 style="margin-top: 0; color: #667eea;">🎯 Tus Primeras Misiones</h3>
+              <p>Hemos preparado misiones especiales para ti:</p>
+              
+              <div class="mission-item">
+                <span class="mission-icon">⚡</span>
+                <strong>1 Misión Flash</strong> - ¡Completala rápido para ganar puntos extra!
+              </div>
+              
+              <div class="mission-item">
+                <span class="mission-icon">📅</span>
+                <strong>1 Misión Diaria</strong> - Renueva cada noche para practicar constantemente
+              </div>
+              
+              <div class="mission-item">
+                <span class="mission-icon">📊</span>
+                <strong>2 Misiones Semanales</strong> - Trivias especiales para demostrar tus habilidades
+              </div>
+              
+              <div class="mission-item">
+                <span class="mission-icon">🏆</span>
+                <strong>2 Misiones Mensuales</strong> - Proyectos, certificados y CV para destacar
+              </div>
+            </div>
+            
+            <p><strong>💎 Sistema de Recompensas:</strong></p>
+            <ul>
+              <li>Gana <strong>MagnetoPoints</strong> completando misiones</li>
+              <li>Desbloquea <strong>badges</strong> exclusivos</li>
+              <li>Mantén tu <strong>racha</strong> diaria activa</li>
+              <li>Completa misiones rápido para ganar <strong>bonos de velocidad</strong> (70%-100%)</li>
+            </ul>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/misiones" class="cta-button">
+                Ver Mis Misiones 🎮
+              </a>
+            </center>
+            
+            <p style="margin-top: 30px;">Recuerda que cada día es una oportunidad para mejorar. ¡Nos vemos en el tablero!</p>
+            
+            <p style="margin-top: 20px;">
+              Saludos,<br>
+              <strong>El equipo de MagnetoQuest</strong>
+            </p>
+          </div>
+          
+          <div class="footer">
+            <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      const mailOptions = {
+        from: process.env.FROM_EMAIL || 'noreply@magnetoquest.com',
+        to: email,
+        subject: subject,
+        html: htmlContent,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      
+      console.log(`Welcome email sent to ${email} for user "${name}"`);
+    } catch (error) {
+      console.error(`Error sending welcome email to ${email}:`, error);
+      throw error;
+    }
+  }
+
   async sendMorningReminder(userId: string, email: string, name: string): Promise<void> {
     // Validación de parámetros
     if (!name || !email || !userId) {
@@ -322,6 +487,159 @@ export class EmailService {
       console.log(`Mission deadline notification sent to ${email} for "${missionTitle}"`);
     } catch (error) {
       console.error(`Error sending mission deadline email to ${email}:`, error);
+      throw error;
+    }
+  }
+
+  async sendApplicationMissionReminder(
+    userId: string,
+    email: string,
+    name: string,
+    missionTitle: string,
+    missionDescription: string,
+    hoursRemaining: number
+  ): Promise<void> {
+    // Validación de parámetros
+    if (!name || !email || !userId || !missionTitle || !missionDescription) {
+      console.error('Missing required parameters:', { userId, email, name, missionTitle });
+      throw new Error('Missing required parameters for application mission reminder');
+    }
+
+    const firstName = name.split(' ')[0];
+    const subject = `💼 Oportunidad laboral esperando por ti: ${missionTitle}`;
+    
+    // Calcular tiempo restante en formato legible
+    let timeRemaining = '';
+    if (hoursRemaining < 1) {
+      const minutesRemaining = Math.floor(hoursRemaining * 60);
+      timeRemaining = `${minutesRemaining} minutos`;
+    } else if (hoursRemaining < 24) {
+      timeRemaining = `${Math.floor(hoursRemaining)} horas`;
+    } else {
+      const daysRemaining = Math.floor(hoursRemaining / 24);
+      timeRemaining = daysRemaining === 1 ? '1 día' : `${daysRemaining} días`;
+    }
+
+    // Mensaje de urgencia según el tiempo restante
+    let urgencyMessage = '';
+    let backgroundColor = '';
+    let borderColor = '';
+    let ctaColor = '';
+    
+    if (hoursRemaining < 6) {
+      urgencyMessage = '🚨 ¡ÚLTIMA OPORTUNIDAD! Esta vacante cierra en pocas horas';
+      backgroundColor = '#fef2f2';
+      borderColor = '#dc2626';
+      ctaColor = '#dc2626';
+    } else if (hoursRemaining < 24) {
+      urgencyMessage = '⚡ ¡URGENTE! La vacante cierra pronto';
+      backgroundColor = '#fef3c7';
+      borderColor = '#f59e0b';
+      ctaColor = '#f59e0b';
+    } else {
+      urgencyMessage = '💼 Nueva oportunidad laboral disponible';
+      backgroundColor = '#dbeafe';
+      borderColor = '#3b82f6';
+      ctaColor = '#3b82f6';
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">💼 MagnetoQuest</h1>
+            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Conectamos talento con oportunidades</p>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 30px;">
+            <h2 style="color: #1f2937; margin: 0 0 20px 0;">¡Hola, ${firstName}!</h2>
+            
+            <div style="background-color: ${backgroundColor}; border-left: 4px solid ${borderColor}; padding: 20px; margin: 20px 0; border-radius: 8px;">
+              <p style="margin: 0; font-weight: bold; color: #1f2937; font-size: 16px;">
+                ${urgencyMessage}
+              </p>
+              <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">
+                ⏳ Tiempo restante: <strong style="color: ${borderColor}">${timeRemaining}</strong>
+              </p>
+            </div>
+
+            <div style="background-color: #f3f4f6; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #6366f1;">
+              <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 18px;">📋 ${missionTitle}</h3>
+              <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0;">
+                ${missionDescription}
+              </p>
+            </div>
+
+            <div style="background-color: #ecfdf5; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #10b981;">
+              <p style="margin: 0; color: #065f46; font-size: 14px; line-height: 1.6;">
+                <strong>💡 ¿Por qué aplicar ahora?</strong><br>
+                • Esta oportunidad está seleccionada especialmente para tu perfil<br>
+                • Las empresas buscan activamente candidatos como tú<br>
+                • Aplicar rápido aumenta tus posibilidades de ser considerado<br>
+                • Al completar esta misión, ganarás <strong>100 MagnetoPoints</strong> 🎯
+              </p>
+            </div>
+
+            <p style="font-size: 16px; line-height: 1.6; color: #374151; text-align: center; margin: 20px 0;">
+              ${hoursRemaining < 6 
+                ? '⚡ <strong>¡No dejes pasar esta oportunidad!</strong> Las mejores vacantes se llenan rápido.' 
+                : '🎯 <strong>Da el siguiente paso en tu carrera profesional.</strong> Esta oportunidad podría ser exactamente lo que buscas.'
+              }
+            </p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/empleos" 
+                 style="background-color: ${ctaColor}; color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                💼 Ver Vacante y Aplicar
+              </a>
+            </div>
+
+            <div style="text-align: center; margin: 20px 0;">
+              <p style="color: #6b7280; font-size: 13px; margin: 0;">
+                ¿No estás interesado? <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/misiones" style="color: #6366f1; text-decoration: none;">Ver todas las misiones</a>
+              </p>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 12px; margin: 0 0 10px 0;">
+              MagnetoQuest - Tu próxima oportunidad está aquí
+            </p>
+            <p style="color: #9ca3af; font-size: 11px; margin: 0;">
+              Este mensaje fue enviado porque tienes una misión de aplicación pendiente.<br>
+              Puedes gestionar tus notificaciones en la configuración de tu cuenta.
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    try {
+      const mailOptions = {
+        from: process.env.FROM_EMAIL || 'noreply@magnetoquest.com',
+        to: email,
+        subject: subject,
+        html: htmlContent,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      
+      // Registrar la notificación
+      await this.logNotification(userId, 'email', 'application_mission_reminder', {
+        mission_title: missionTitle,
+        mission_description: missionDescription,
+        hours_remaining: hoursRemaining,
+        urgency_level: hoursRemaining < 6 ? 'urgent' : hoursRemaining < 24 ? 'warning' : 'reminder',
+        subject: subject,
+        recipient: email,
+        sent_at: new Date().toISOString()
+      });
+      console.log(`Application mission notification sent to ${email} for "${missionTitle}"`);
+    } catch (error) {
+      console.error(`Error sending application mission email to ${email}:`, error);
       throw error;
     }
   }

@@ -36,9 +36,13 @@ export default function Misiones() {
     const [error, setError] = useState<string | null>(null)
     const [magnetoPoints, setMagnetoPoints] = useState<number>(0)
     const [loadingPoints, setLoadingPoints] = useState(true)
+    const [hasDoneToday, setHasDoneToday] = useState<boolean | null>(null)
     // Nuevo estado para las insignias
     const [badgesCount, setBadgesCount] = useState<number>(0)
     const [loadingBadges, setLoadingBadges] = useState(true)
+
+    // Log en cada render para depuración rápida
+    console.log('[Misiones] render - hasDoneToday:', hasDoneToday)
 
     useEffect(() => {
         const storedUser = AuthService.getCurrentUserId()
@@ -70,7 +74,15 @@ export default function Misiones() {
                 const res = await fetch(`/api/users/${userId}/progress`)
                 if (!res.ok) throw new Error(`HTTP ${res.status}`)
                 const data = await res.json()
+                // Guardar puntos y el flag has_done_today (si viene del backend)
                 setMagnetoPoints(data.magento_points || 0)
+                // Normalizar el valor a booleano o null si no viene
+                const normalized = (data.has_done_today === undefined || data.has_done_today === null)
+                    ? null
+                    : Boolean(data.has_done_today)
+                setHasDoneToday(normalized)
+                // Log para comprobar lo que llega del backend y lo que se guarda
+                console.log('[Misiones] /api/users/:userId/progress -> raw has_done_today:', data.has_done_today, 'normalized:', normalized)
             } catch (e: any) {
                 console.error("Error fetching user progress", e)
                 setMagnetoPoints(0)
@@ -100,6 +112,11 @@ export default function Misiones() {
         fetchUserProgress()
         fetchBadgesCount()
     }, [])
+
+    // Log específico cuando cambie hasDoneToday
+    React.useEffect(() => {
+        console.log('[Misiones] useEffect - hasDoneToday changed to:', hasDoneToday)
+    }, [hasDoneToday])
 
     // Calcular el porcentaje de progreso (tope: 500 puntos)
     const maxPoints = 500;
@@ -168,7 +185,8 @@ export default function Misiones() {
 
                     <div className={styles.div7}>
                         <div style={{ maxWidth: 2000 }}>
-                            <Carousel autoPlayMs={2800} />
+                            {/* Pasamos el flag hasDoneToday para que el carrusel pueda bloquear el inicio de la trivia diaria */}
+                            <Carousel autoPlayMs={2800} hasDoneToday={hasDoneToday} />
                         </div>
                     </div>
                 </div>

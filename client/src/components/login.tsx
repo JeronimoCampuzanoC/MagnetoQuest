@@ -19,9 +19,12 @@ import { AuthService } from "../services/authService";
 
 const Login: React.FC = () => {
     const [username, setUsername] = useState<string>("");
+    const [email, setEmail] = useState<string>("");
     const [error, setError] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+    const [isRegisterMode, setIsRegisterMode] = useState<boolean>(false);
+    const [successMessage, setSuccessMessage] = useState<string>("");
     const navigate = useNavigate();
 
     // Load available users on component mount
@@ -48,19 +51,42 @@ const Login: React.FC = () => {
 
         setIsLoading(true);
         setError("");
+        setSuccessMessage("");
 
         try {
-            const user = await AuthService.validateUser(username);
+            if (isRegisterMode) {
+                // Modo Registro
+                const user = await AuthService.registerUser(username, email);
 
-            if (user) {
-                // Save user session
-                AuthService.saveSession(user);
-                // Dispatch custom event to notify App component
-                window.dispatchEvent(new Event("login"));
-                // Navigate to missions
-                navigate("/misiones");
+                if (user) {
+                    // Save user session
+                    AuthService.saveSession(user);
+                    setSuccessMessage("¡Registro exitoso! Redirigiendo...");
+
+                    // Dispatch custom event to notify App component
+                    window.dispatchEvent(new Event("login"));
+
+                    // Navigate to missions after short delay
+                    setTimeout(() => {
+                        navigate("/misiones");
+                    }, 1500);
+                } else {
+                    setError("Error al registrar usuario. Intenta de nuevo.");
+                }
             } else {
-                setError("Usuario no encontrado. Usuarios disponibles: " + availableUsers.join(", "));
+                // Modo Login
+                const user = await AuthService.validateUser(username);
+
+                if (user) {
+                    // Save user session
+                    AuthService.saveSession(user);
+                    // Dispatch custom event to notify App component
+                    window.dispatchEvent(new Event("login"));
+                    // Navigate to missions
+                    navigate("/misiones");
+                } else {
+                    setError("Usuario no encontrado. Usuarios disponibles: " + availableUsers.join(", "));
+                }
             }
         } catch (error) {
             setError("Error al conectar con el servidor. Intenta de nuevo.");
@@ -82,7 +108,7 @@ const Login: React.FC = () => {
                                     className={styles.logoImage}
                                 />
                                 <CardTitle tag="h5" className="text-center text-muted">
-                                    Iniciar Sesión
+                                    {isRegisterMode ? "Crear Cuenta" : "Iniciar Sesión"}
                                 </CardTitle>
                             </div>
 
@@ -103,9 +129,33 @@ const Login: React.FC = () => {
                                     />
                                 </FormGroup>
 
+                                {isRegisterMode && (
+                                    <FormGroup className="mb-3">
+                                        <Label for="email" className={styles.formLabel}>
+                                            Email (Opcional)
+                                        </Label>
+                                        <Input
+                                            type="email"
+                                            name="email"
+                                            id="email"
+                                            placeholder="tu@email.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            disabled={isLoading}
+                                            className="form-control"
+                                        />
+                                    </FormGroup>
+                                )}
+
                                 {error && (
                                     <Alert color="danger">
                                         {error}
+                                    </Alert>
+                                )}
+
+                                {successMessage && (
+                                    <Alert color="success">
+                                        {successMessage}
                                     </Alert>
                                 )}
 
@@ -113,28 +163,50 @@ const Login: React.FC = () => {
                                     color="primary"
                                     type="submit"
                                     disabled={isLoading || !username.trim()}
-                                    className="w-100"
+                                    className="w-100 mb-2"
                                 >
                                     {isLoading ? (
                                         <>
                                             <span className="spinner-border spinner-border-sm me-2" />
-                                            Verificando...
+                                            {isRegisterMode ? "Registrando..." : "Verificando..."}
                                         </>
                                     ) : (
-                                        "Iniciar Sesión"
+                                        isRegisterMode ? "Registrarse" : "Iniciar Sesión"
                                     )}
+                                </Button>
+
+                                <Button
+                                    color="link"
+                                    type="button"
+                                    onClick={() => {
+                                        setIsRegisterMode(!isRegisterMode);
+                                        setError("");
+                                        setSuccessMessage("");
+                                        setEmail("");
+                                    }}
+                                    disabled={isLoading}
+                                    className="w-100"
+                                >
+                                    {isRegisterMode
+                                        ? "¿Ya tienes cuenta? Inicia sesión"
+                                        : "¿No tienes cuenta? Regístrate"
+                                    }
                                 </Button>
                             </Form>
 
-                            <div className={styles.divider}>
-                                Usuarios de prueba
-                            </div>
+                            {!isRegisterMode && (
+                                <>
+                                    <div className={styles.divider}>
+                                        Usuarios de prueba
+                                    </div>
 
-                            <div className={styles.testUsers}>
-                                <small>
-                                    {availableUsers.join(" • ")}
-                                </small>
-                            </div>
+                                    <div className={styles.testUsers}>
+                                        <small>
+                                            {availableUsers.join(" • ")}
+                                        </small>
+                                    </div>
+                                </>
+                            )}
                         </CardBody>
                     </Card>
                 </Col>

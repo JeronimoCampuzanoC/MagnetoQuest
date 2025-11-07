@@ -7,7 +7,7 @@ import { AppUser } from './entities/AppUser';
 import { Project } from './entities/Project';
 import triviaProxyRoutes from './routes/trivia-proxy.routes';
 import { Certificate } from './entities/Certificate';
-import { Mission, MissionCategory } from './entities/Mission';
+import { Mission, MissionCategory, MissionFrequency } from './entities/Mission';
 import { Badge } from './entities/Badge';
 import { BadgeProgress } from './entities/BadgeProgress';
 import { NotificationLog } from './entities/NotificationLog';
@@ -17,14 +17,40 @@ import { UserMissionProgress } from './entities/UserMissionProgress';
 import { UserProgress } from './entities/UserProgress';
 import { NotificationService } from './services/NotificationService';
 import { dailyResetService } from './services/DailyResetService';
+import { missionDelegateService } from './services/MissionDelegate';
 import { In } from 'typeorm';
 
 dotenv.config();
+
+// Inicializar el servicio de notificaciones
+const notificationService = new NotificationService();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Helper function to create badge award notifications
+async function createBadgeAwardNotification(userId: string, badgeName: string, badgeScore: number, category: string) {
+  try {
+    const notificationRepo = AppDataSource.getRepository(NotificationLog);
+    const notification = notificationRepo.create({
+      user_id: userId,
+      channel: 'email',
+      template: 'badge_award',
+      metadata: {
+        badge_name: badgeName,
+        badge_score: badgeScore,
+        category: category,
+        awarded_at: new Date().toISOString()
+      }
+    });
+    await notificationRepo.save(notification);
+    console.log(`🔔 Notificación de badge creada: ${badgeName} para usuario ${userId}`);
+  } catch (error) {
+    console.error('❌ Error al crear notificación de badge:', error);
+    // No fallar la operación principal si falla la notificación
+  }
+}
 
 app.get('/api/hello', async (_req, res)=>{
   res.json({message:"Hola desde el back"})
@@ -65,6 +91,35 @@ app.post('/api/test/notifications/mission-deadline', async (_req, res) => {
   }
 });
 
+// Endpoints para gestionar el MissionDelegate (admin only - en producción agregar autenticación)
+app.post('/api/admin/mission-rotation/execute', async (_req, res) => {
+  try {
+    console.log('🔧 [Admin] Ejecutando rotación de misiones manualmente...');
+    await missionDelegateService.executeManually();
+    res.json({ 
+      message: 'Mission rotation executed successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error en rotación manual de misiones:', error);
+    res.status(500).json({ error: 'Failed to execute mission rotation' });
+  }
+});
+
+app.get('/api/admin/mission-rotation/status', async (_req, res) => {
+  try {
+    const isRunning = missionDelegateService.isRunning();
+    res.json({ 
+      status: isRunning ? 'running' : 'stopped',
+      service: 'MissionDelegate',
+      schedule: '0 0 * * * (midnight Bogota time)'
+    });
+  } catch (error) {
+    console.error('❌ Error al verificar estado de MissionDelegate:', error);
+    res.status(500).json({ error: 'Failed to get service status' });
+  }
+});
+
 // Endpoints para gestionar user_progress
 app.get('/api/users/:userId/progress', async (req, res) => {
   try {
@@ -86,6 +141,83 @@ app.get('/api/users/:userId/progress', async (req, res) => {
       await userProgressRepo.save(userProgress);
     }
 
+    // ======================================
+    // ACTUALIZAR BADGES DE TIPO MagnetoPoints
+    // ======================================
+    try {
+      // 1) Asegurar que existan las filas badge_progress para todos los badges de categoría 'MagnetoPoints'
+      //    Insertar con progress 0 y awarded_at NULL si faltan
+      await AppDataSource.query(
+        `
+        INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+        SELECT $1, b.badge_id, 0, NULL
+        FROM badge b
+        WHERE b.category = 'MagnetoPoints' AND b.quantity IS NOT NULL
+        ON CONFLICT (user_id, badge_id) DO NOTHING
+        `,
+        [userId]
+      );
+
+      // 2) Actualizar progress basado en magento_points
+      //    - progress = LEAST(magento_points, b.quantity)
+      //    - awarded_at = NOW() únicamente cuando se alcanza la cantidad y awarded_at IS NULL
+      const magentoPoints = userProgress?.magento_points || 0;
+      const updatedMpRows = await AppDataSource.query(
+        `
+        UPDATE badge_progress bp
+        SET
+          progress = LEAST($2::int, b.quantity),
+          awarded_at = CASE
+            WHEN bp.awarded_at IS NULL AND LEAST($2::int, b.quantity) >= b.quantity THEN NOW()
+            ELSE bp.awarded_at
+          END
+        FROM badge b
+        WHERE bp.badge_id = b.badge_id
+          AND bp.user_id = $1
+          AND b.category = 'MagnetoPoints'
+          AND b.quantity IS NOT NULL
+          AND bp.awarded_at IS NULL
+  RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.quantity AS quantity, b.badge_score AS badge_score
+        `,
+        [userId, magentoPoints]
+      );
+
+  console.log(`📦 Actualizados ${updatedMpRows.length} badge_progress(es) de MagnetoPoints para user ${userId}`);
+  // Debug: inspect returned shape and badge_score
+  console.log(updatedMpRows);
+  try { console.log(updatedMpRows[0] && updatedMpRows[0][0] && updatedMpRows[0][0].badge_score); } catch (e) { console.log('updatedMpRows[0].badge_score ->', (e as any)?.message ?? e); }
+      if (updatedMpRows && updatedMpRows.length) {
+        // normalize rows (some drivers return [[rows]])
+        const rows: any[] = Array.isArray(updatedMpRows) && Array.isArray(updatedMpRows[0]) ? updatedMpRows[0] : (Array.isArray(updatedMpRows) ? updatedMpRows : []);
+        // only badges that were actually awarded in this update should give points
+        const awardedRows = rows.filter(r => r && r.awarded_at);
+        const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
+        if (totalToAdd > 0) {
+          await AppDataSource.query(
+            `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+            [userId, totalToAdd]
+          );
+          console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges MagnetoPoints al usuario ${userId}`);
+        }
+
+        for (const r of rows) {
+          const name = r.badge_name || r.badge_id;
+          const progress = r.progress;
+          const qty = r.quantity;
+          const awarded = r.awarded_at ? '🏆 awarded' : '';
+          console.log(`✅ MagnetoPoints Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+
+          // 🔔 Crear notificación si el badge fue otorgado
+          if (r.awarded_at) {
+            await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'MagnetoPoints');
+          }
+        }
+      }
+    } catch (mpErr) {
+      console.error('❌ Error actualizando badges MagnetoPoints:', mpErr);
+      // No romper la respuesta por errores en badges
+    }
+
     res.json(userProgress);
   } catch (error) {
     console.error('Error fetching user progress:', error);
@@ -96,6 +228,9 @@ app.get('/api/users/:userId/progress', async (req, res) => {
 app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
   try {
     const { userId } = req.params;
+    // Optional: allow client to send final trivia score to be added to magento_points
+    const { score } = req.body ?? {};
+    const scoreValue = typeof score === 'number' ? score : (score ? parseInt(score, 10) || 0 : 0);
     const userProgressRepo = AppDataSource.getRepository(UserProgress);
     
     let userProgress = await userProgressRepo.findOne({
@@ -107,7 +242,8 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
         user_id: userId,
         streak: 1,
         has_done_today: true,
-        magento_points: 10 // Puntos por completar trivia
+        // Puntos por completar trivia + score opcional enviado por el cliente
+        magento_points: 10 + (scoreValue > 0 ? scoreValue : 0)
       });
     } else {
       // Si ya completó hoy, no incrementar racha
@@ -115,6 +251,11 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
         userProgress.streak += 1;
         userProgress.has_done_today = true;
         userProgress.magento_points += 10;
+      }
+
+      // Siempre sumar el score final de la trivia si se pasó en el body
+      if (scoreValue > 0) {
+        userProgress.magento_points += scoreValue;
       }
     }
     
@@ -192,6 +333,80 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
     } catch (missionError) {
       console.error('⚠️ [Trivia] Error al actualizar progreso de misiones:', missionError);
       // No fallar la respuesta si hay error en las misiones
+    }
+
+    // ======================================
+    // ACTUALIZAR BADGES DE TIPO STREAK
+    // ======================================
+    try {
+      // asegurar que existan las filas badge_progress para badges de tipo 'Streak'
+      await AppDataSource.query(
+        `
+        INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+        SELECT $1, b.badge_id, 0, NULL
+        FROM badge b
+        WHERE b.category = 'Streak' AND b.quantity IS NOT NULL
+        ON CONFLICT (user_id, badge_id) DO NOTHING
+        `,
+        [userId]
+      );
+
+      // actualizar progress basado en la racha actual del usuario
+      // - progress = min(streak, b.quantity)
+      // - awarded_at = NOW() solo si se alcanza o supera la cantidad y awarded_at IS NULL
+      const streakValue = userProgress?.streak || 0;
+      const updatedStreakRows = await AppDataSource.query(
+        `
+        UPDATE badge_progress bp
+        SET
+          progress = LEAST($2::int, b.quantity),
+          awarded_at = CASE
+            WHEN bp.awarded_at IS NULL AND LEAST($2::int, b.quantity) >= b.quantity THEN NOW()
+            ELSE bp.awarded_at
+          END
+        FROM badge b
+        WHERE bp.badge_id = b.badge_id
+          AND bp.user_id = $1
+          AND b.category = 'Streak'
+          AND b.quantity IS NOT NULL
+          AND bp.awarded_at IS NULL
+  RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.quantity AS quantity, b.badge_score AS badge_score
+        `,
+        [userId, streakValue]
+      );
+
+  console.log(`📈 Actualizados ${updatedStreakRows.length} badge_progress(es) de Streak para user ${userId}`);
+  // Debug: inspect returned shape and badge_score
+  console.log(updatedStreakRows);
+  try { console.log(updatedStreakRows[0] && updatedStreakRows[0][0] && updatedStreakRows[0][0].badge_score); } catch (e) { console.log('updatedStreakRows[0].badge_score ->', (e as any)?.message ?? e); }
+      if (updatedStreakRows && updatedStreakRows.length) {
+        const rows: any[] = Array.isArray(updatedStreakRows) && Array.isArray(updatedStreakRows[0]) ? updatedStreakRows[0] : (Array.isArray(updatedStreakRows) ? updatedStreakRows : []);
+        const awardedRows = rows.filter(r => r && r.awarded_at);
+        const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
+        if (totalToAdd > 0) {
+          await AppDataSource.query(
+            `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+            [userId, totalToAdd]
+          );
+          console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges Streak al usuario ${userId}`);
+        }
+
+        for (const r of rows) {
+          const name = r.badge_name || r.badge_id;
+          const progress = r.progress;
+          const qty = r.quantity;
+          const awarded = r.awarded_at ? '🏆 awarded' : '';
+          console.log(`✅ Streak Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+
+          // 🔔 Crear notificación si el badge fue otorgado
+          if (r.awarded_at) {
+            await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'Streak');
+          }
+        }
+      }
+    } catch (streakErr) {
+      console.error('❌ Error actualizando badges Streak:', streakErr);
+      // No fallar la petición principal si hay error en badges
     }
 
     res.json(userProgress);
@@ -320,8 +535,37 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
           type = 'mission';
           break;
         case 'badge_award':
-          title = '🏆 ¡Nueva insignia!';
-          message = 'Has ganado una nueva insignia por tu progreso';
+          const badgeName = notification.metadata?.badge_name || 'Insignia';
+          const badgeScore = notification.metadata?.badge_score || 0;
+          const badgeCategory = notification.metadata?.category || 'general';
+          
+          // Determinar emoji y texto según la categoría del badge
+          let categoryEmoji = '🏆';
+          let categoryText = '';
+          
+          switch (badgeCategory) {
+            case 'Trivia':
+              categoryEmoji = '🧠';
+              categoryText = 'por completar trivias';
+              break;
+            case 'Streak':
+              categoryEmoji = '🔥';
+              categoryText = 'por mantener tu racha';
+              break;
+            case 'MagnetoPoints':
+              categoryEmoji = '💎';
+              categoryText = 'por acumular puntos';
+              break;
+            case 'CV':
+              categoryEmoji = '📝';
+              categoryText = 'por mejorar tu perfil';
+              break;
+            default:
+              categoryText = 'por tu progreso';
+          }
+          
+          title = `${categoryEmoji} ¡Nueva insignia desbloqueada!`;
+          message = `Has ganado "${badgeName}" ${categoryText}. +${badgeScore} MagnetoPoints`;
           type = 'achievement';
           break;
         case 'trivia_week':
@@ -411,21 +655,288 @@ app.get('/users/:userId/missions-in-progress', async (req, res) => {
   }
 });
 
+// LISTAR misiones de tipo Application para el usuario
+app.get('/api/users/:userId/missions/applications', async (req, res) => {
+  const { userId } = req.params;
+  console.log('Listando misiones de Application para userId=', userId);
+  try {
+    const qb = AppDataSource.getRepository(UserMissionProgress)
+      .createQueryBuilder('ump')
+      .innerJoin('ump.mission', 'm')
+      .select([
+        'ump.ump_id',
+        'ump.user_id',
+        'ump.mission_id',
+        'ump.status',
+        'ump.progress',
+        'ump.starts_at',
+        'ump.ends_at',
+        'ump.completed_at',
+        'm.title',
+        'm.description',
+        'm.category',
+        'm.xp_reward',
+        'm.objective',
+      ])
+      .where('ump.user_id = :userId', { userId })
+      .andWhere('m.category = :category', { category: 'Application' })
+      .orderBy('ump.starts_at', 'DESC');
+
+    const result = await qb.getRawMany();
+
+    const mapped = result.map(r => ({
+      ump_id: r.ump_ump_id,
+      user_id: r.ump_user_id,
+      mission_id: r.ump_mission_id,
+      status: r.ump_status,
+      progress: r.ump_progress,
+      starts_at: r.ump_starts_at,
+      ends_at: r.ump_ends_at,
+      completed_at: r.ump_completed_at,
+      mission_title: r.m_title,
+      mission_description: r.m_description,
+      mission_category: r.m_category,
+      xp_reward: r.m_xp_reward,
+      objective: r.m_objective,
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error('Error listing application missions for user', userId, err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// APLICAR a un empleo (incrementar progreso de misión de Application)
+app.post('/api/users/:userId/missions/:missionId/apply', async (req, res) => {
+  const { userId, missionId } = req.params;
+  console.log(`📝 [Apply] Usuario ${userId} aplicando a misión ${missionId}`);
+  
+  try {
+    const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+    const missionRepo = AppDataSource.getRepository(Mission);
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
+
+    // Variables para calcular puntos dinámicos (solo Application)
+    let actualXpReward = 0;
+    let completionPercentage = 100;
+
+    // Buscar el progreso de la misión del usuario
+    const missionProgress = await missionProgressRepo.findOne({
+      where: { user_id: userId, mission_id: missionId },
+      relations: ['mission']
+    });
+
+    if (!missionProgress) {
+      return res.status(404).json({ error: 'Misión no encontrada para este usuario' });
+    }
+
+    // Verificar que sea una misión de Application
+    const mission = await missionRepo.findOne({ where: { mission_id: missionId } });
+    if (!mission || mission.category !== 'Application') {
+      return res.status(400).json({ error: 'Esta misión no es de tipo Application' });
+    }
+
+    // Verificar si ya está completada
+    if (missionProgress.status === 'completed') {
+      return res.status(400).json({ error: 'Esta misión ya está completada' });
+    }
+
+    // Incrementar el progreso
+    const oldProgress = missionProgress.progress;
+    missionProgress.progress += 1;
+
+    // Verificar si se completó la misión
+    if (missionProgress.progress >= mission.objective) {
+      missionProgress.status = 'completed';
+      missionProgress.completed_at = new Date();
+      missionProgress.progress = mission.objective; // Asegurar que no exceda el objetivo
+
+      // 🎯 Calcular XP con porcentaje basado en velocidad de completación (SOLO para Application)
+      actualXpReward = mission.xp_reward;
+      completionPercentage = 100;
+
+      if (mission.category === 'Application' && missionProgress.starts_at && missionProgress.ends_at) {
+        const startTime = new Date(missionProgress.starts_at).getTime();
+        const endTime = new Date(missionProgress.ends_at).getTime();
+        const completedTime = new Date(missionProgress.completed_at).getTime();
+        
+        const totalDuration = endTime - startTime; // Duración total de la misión
+        const timeRemaining = endTime - completedTime; // Tiempo que quedaba al completar
+        
+        if (totalDuration > 0) {
+          // Calcular porcentaje de tiempo restante (0% a 100%)
+          const timeRemainingPercentage = Math.max(0, Math.min(100, (timeRemaining / totalDuration) * 100));
+          
+          // Calcular porcentaje de puntos: 70% cuando 0% tiempo restante, 100% cuando 100% tiempo restante
+          // Formula: pointsPercentage = 70 + (timeRemainingPercentage * 0.3)
+          completionPercentage = 70 + (timeRemainingPercentage * 0.3);
+          
+          // Aplicar el porcentaje a los puntos base
+          actualXpReward = Math.round(mission.xp_reward * (completionPercentage / 100));
+          
+          console.log(`⏱️ [Apply] Tiempo restante: ${timeRemainingPercentage.toFixed(2)}% → Puntos: ${completionPercentage.toFixed(2)}% (${actualXpReward}/${mission.xp_reward})`);
+        }
+      }
+
+      // 🎯 Otorgar XP al usuario (MagnetoPoints)
+      let userProgress = await userProgressRepo.findOne({ where: { user_id: userId } });
+      
+      if (!userProgress) {
+        // Crear user_progress si no existe
+        userProgress = userProgressRepo.create({
+          user_id: userId,
+          streak: 0,
+          has_done_today: false,
+          magento_points: 0
+        });
+      }
+
+      userProgress.magento_points += actualXpReward;
+      userProgress.updated_at = new Date();
+      await userProgressRepo.save(userProgress);
+
+      console.log(`✅ [Apply] Misión completada! Usuario ${userId} recibió ${actualXpReward} MagnetoPoints (${completionPercentage.toFixed(1)}% de ${mission.xp_reward})`);
+
+      // Crear notificación de misión completada
+      try {
+        const notificationRepo = AppDataSource.getRepository(NotificationLog);
+        const notification = notificationRepo.create({
+          user_id: userId,
+          channel: 'email',
+          template: 'mission_completed',
+          metadata: {
+            mission_title: mission.title,
+            mission_category: mission.category,
+            xp_reward: actualXpReward,
+            base_xp: mission.xp_reward,
+            completion_percentage: mission.category === 'Application' ? completionPercentage : 100,
+            completed_at: new Date().toISOString()
+          }
+        });
+        await notificationRepo.save(notification);
+        console.log(`🔔 Notificación de misión completada creada para usuario ${userId}`);
+      } catch (notifError) {
+        console.error('❌ Error al crear notificación:', notifError);
+      }
+
+      // 🏆 Verificar y actualizar badges de MagnetoPoints
+      try {
+        await AppDataSource.query(
+          `
+          INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+          SELECT $1, b.badge_id, 0, NULL
+          FROM badge b
+          WHERE b.category = 'MagnetoPoints' AND b.quantity IS NOT NULL
+          ON CONFLICT (user_id, badge_id) DO NOTHING
+          `,
+          [userId]
+        );
+
+        await AppDataSource.query(
+          `
+          UPDATE badge_progress bp
+          SET 
+            progress = LEAST($2, b.quantity),
+            awarded_at = CASE
+              WHEN bp.awarded_at IS NULL AND $2 >= b.quantity THEN NOW()
+              ELSE bp.awarded_at
+            END
+          FROM badge b
+          WHERE bp.badge_id = b.badge_id
+            AND bp.user_id = $1
+            AND b.category = 'MagnetoPoints'
+            AND b.quantity IS NOT NULL
+          `,
+          [userId, userProgress.magento_points]
+        );
+
+        // Verificar si se otorgó un nuevo badge
+        const newBadgesResult = await AppDataSource.query(
+          `
+          SELECT b.badge_name, b.badge_score, b.category
+          FROM badge_progress bp
+          JOIN badge b ON bp.badge_id = b.badge_id
+          WHERE bp.user_id = $1
+            AND b.category = 'MagnetoPoints'
+            AND bp.awarded_at >= NOW() - INTERVAL '5 seconds'
+          `,
+          [userId]
+        );
+
+        // Crear notificación para cada nuevo badge
+        for (const badge of newBadgesResult) {
+          const notificationRepo = AppDataSource.getRepository(NotificationLog);
+          const badgeNotification = notificationRepo.create({
+            user_id: userId,
+            channel: 'email',
+            template: 'badge_award',
+            metadata: {
+              badge_name: badge.badge_name,
+              badge_score: badge.badge_score,
+              category: badge.category,
+              awarded_at: new Date().toISOString()
+            }
+          });
+          await notificationRepo.save(badgeNotification);
+          console.log(`🔔 Notificación de badge creada: ${badge.badge_name} para usuario ${userId}`);
+        }
+
+      } catch (badgeError) {
+        console.error('❌ Error al actualizar badges:', badgeError);
+      }
+    } else {
+      // Solo actualizar el estado a in_progress si aún no lo está
+      if (missionProgress.status === 'not_started') {
+        missionProgress.status = 'in_progress';
+        missionProgress.starts_at = new Date();
+      }
+      console.log(`📈 [Apply] Progreso actualizado: ${oldProgress} → ${missionProgress.progress}/${mission.objective}`);
+    }
+
+    await missionProgressRepo.save(missionProgress);
+
+    res.json({
+      success: true,
+      progress: missionProgress.progress,
+      objective: mission.objective,
+      status: missionProgress.status,
+      completed: missionProgress.status === 'completed',
+      xp_earned: missionProgress.status === 'completed' ? actualXpReward : 0,
+      base_xp: mission.xp_reward,
+      completion_percentage: mission.category === 'Application' && missionProgress.status === 'completed' ? completionPercentage : 100,
+      message: missionProgress.status === 'completed' 
+        ? mission.category === 'Application' && completionPercentage < 100
+          ? `¡Felicidades! Has completado la misión y ganado ${actualXpReward} MagnetoPoints (${completionPercentage.toFixed(1)}% por velocidad)` 
+          : `¡Felicidades! Has completado la misión y ganado ${actualXpReward} MagnetoPoints`
+        : `Progreso: ${missionProgress.progress}/${mission.objective}`
+    });
+
+  } catch (err) {
+    console.error('❌ [Apply] Error al aplicar a empleo:', err);
+    res.status(500).json({ error: 'Error al procesar la aplicación' });
+  }
+});
+
 
 // LISTAR insignias
 app.get('/users/:userId/badges', async (req, res) => {
   const { userId } = req.params;
   console.log('Listando insignias para userId=', userId);
-  try {
+try {
     const qb = AppDataSource.getRepository(BadgeProgress)
       .createQueryBuilder('bp')
       .innerJoin('bp.badge', 'b')
       .select([
         'b.badge_name AS badge_name',
         'b.badge_score AS badge_score',
-        'b.category AS category',  // ← Agregar esto
+        'b.category AS category',
+        'bp.progress AS progress',
+        'bp.awarded_at AS awarded_at'
       ])
       .where('bp.user_id = :userId', { userId })
+      // Mostrar sólo las insignias ya otorgadas (awarded_at != NULL)
+      .andWhere('bp.awarded_at IS NOT NULL')
       .orderBy('b.badge_name', 'ASC');
 
     const result = await qb.getRawMany();
@@ -451,16 +962,267 @@ app.get('/api/appusers', async (_req, res) => {
 // CREAR usuario
 app.post('/api/users', async (req, res) => {
   try {
-    const { name } = req.body ?? {};
+    const { name, email } = req.body ?? {};
     if (typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'name requerido' });
     }
-    const repo = AppDataSource.getRepository(AppUser);
-    const user = repo.create({ name: name.trim() });
-    await repo.save(user);
-    res.status(201).json(user);
+
+    console.log(`👤 [Register] Creando nuevo usuario: ${name.trim()}`);
+
+    // Verificar si el usuario ya existe
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const existingUser = await userRepo.findOne({ where: { name: name.trim() } });
+    
+    if (existingUser) {
+      return res.status(409).json({ 
+        error: 'Usuario ya existe',
+        user: existingUser 
+      });
+    }
+
+    // Crear el usuario
+    const user = userRepo.create({ 
+      name: name.trim(),
+      email: email?.trim() || null
+    });
+    await userRepo.save(user);
+    console.log(`✅ [Register] Usuario creado: ${user.id_app_user}`);
+
+    // Crear user_progress inicial
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
+    const userProgress = userProgressRepo.create({
+      user_id: user.id_app_user,
+      streak: 0,
+      has_done_today: false,
+      magento_points: 0
+    });
+    await userProgressRepo.save(userProgress);
+    console.log(`✅ [Register] User progress inicializado`);
+
+    // 📧 Crear notificación de bienvenida y enviar email
+    try {
+      const notificationRepo = AppDataSource.getRepository(NotificationLog);
+      const welcomeNotification = notificationRepo.create({
+        user_id: user.id_app_user,
+        channel: 'email',
+        template: 'welcome',
+        metadata: {
+          user_name: user.name,
+          registered_at: new Date().toISOString()
+        }
+      });
+      await notificationRepo.save(welcomeNotification);
+      console.log(`📧 [Register] Notificación de bienvenida creada`);
+
+      // Enviar email de bienvenida si tiene email
+      if (user.email) {
+        const { EmailService } = await import('./services/EmailService');
+        const emailService = new EmailService();
+        await emailService.sendWelcomeEmail(user.id_app_user, user.email, user.name);
+        console.log(`📧 [Register] Email de bienvenida enviado a ${user.email}`);
+      }
+    } catch (notifError) {
+      console.error('❌ Error al crear notificación de bienvenida:', notifError);
+    }
+
+    // 🎯 Asignar misiones iniciales
+    const missionRepo = AppDataSource.getRepository(Mission);
+    const missionProgressRepo = AppDataSource.getRepository(UserMissionProgress);
+
+    const now = new Date();
+    const assignedMissions: any[] = [];
+
+    // 1. Asignar 1 misión DIARIA de Trivia (aleatoria)
+    const dailyTrivias = await missionRepo.find({
+      where: { 
+        frequency: MissionFrequency.DAILY,
+        is_active: true
+      }
+    });
+    
+    if (dailyTrivias.length > 0) {
+      const randomDaily = dailyTrivias[Math.floor(Math.random() * dailyTrivias.length)];
+      const dailyEndsAt = new Date(now);
+      dailyEndsAt.setHours(23, 59, 59, 999); // Vence al final del día
+      
+      const dailyProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: randomDaily.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: dailyEndsAt
+      });
+      await missionProgressRepo.save(dailyProgress);
+      assignedMissions.push({ type: 'daily', mission: randomDaily.title });
+      console.log(`🎯 [Register] Misión diaria asignada: ${randomDaily.title}`);
+    }
+
+    // 2. Asignar 1 misión FLASH (Application o Flash aleatoria)
+    const flashMissions = await missionRepo.find({
+      where: [
+        { category: MissionCategory.APPLICATION, frequency: MissionFrequency.FLASH },
+        { frequency: MissionFrequency.FLASH }
+      ]
+    });
+    
+    if (flashMissions.length > 0) {
+      const randomFlash = flashMissions[Math.floor(Math.random() * flashMissions.length)];
+      const flashProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: randomFlash.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: new Date(now.getTime() + 6 * 60 * 60 * 1000) // 6 horas
+      });
+      await missionProgressRepo.save(flashProgress);
+      assignedMissions.push({ type: 'flash', mission: randomFlash.title });
+      console.log(`⚡ [Register] Misión flash asignada: ${randomFlash.title}`);
+    }
+
+    // 3. Asignar 2 misiones SEMANALES (Trivias de categorías especiales)
+    const weeklyTriviaCategories = [
+      MissionCategory.TRIVIA_SPECIAL, 
+      MissionCategory.TRIVIA_ABILITIES, 
+      MissionCategory.TRIVIA_INTERVIEW, 
+      MissionCategory.TRIVIA_EMPLOYMENT
+    ];
+    const weeklyTrivias = await missionRepo.find({
+      where: { 
+        category: In(weeklyTriviaCategories),
+        frequency: MissionFrequency.WEEKLY
+      }
+    });
+    
+    // Seleccionar 2 aleatorias
+    const shuffledWeekly = weeklyTrivias.sort(() => 0.5 - Math.random());
+    const selectedWeekly = shuffledWeekly.slice(0, 2);
+    
+    for (const weeklyMission of selectedWeekly) {
+      const weeklyProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: weeklyMission.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 días
+      });
+      await missionProgressRepo.save(weeklyProgress);
+      assignedMissions.push({ type: 'weekly', mission: weeklyMission.title });
+      console.log(`📅 [Register] Misión semanal asignada: ${weeklyMission.title}`);
+    }
+
+    // 4. Asignar 2 misiones MENSUALES (Certificados, Proyectos, CV)
+    const monthlyCategories = [MissionCategory.CV, MissionCategory.CERTIFICATE, MissionCategory.PROJECT];
+    const monthlyMissions = await missionRepo.find({
+      where: { 
+        category: In(monthlyCategories),
+        frequency: MissionFrequency.MONTHLY
+      }
+    });
+    
+    // Seleccionar 2 aleatorias
+    const shuffledMonthly = monthlyMissions.sort(() => 0.5 - Math.random());
+    const selectedMonthly = shuffledMonthly.slice(0, 2);
+    
+    for (const monthlyMission of selectedMonthly) {
+      const monthlyProgress = missionProgressRepo.create({
+        user_id: user.id_app_user,
+        mission_id: monthlyMission.mission_id,
+        progress: 0,
+        status: 'not_started',
+        starts_at: now,
+        ends_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 días
+      });
+      await missionProgressRepo.save(monthlyProgress);
+      assignedMissions.push({ type: 'monthly', mission: monthlyMission.title });
+      console.log(`📆 [Register] Misión mensual asignada: ${monthlyMission.title}`);
+    }
+
+    console.log(`✅ [Register] Usuario ${user.name} registrado exitosamente con ${assignedMissions.length} misiones asignadas`);
+
+    res.status(201).json({
+      user,
+      missions_assigned: assignedMissions,
+      message: '¡Bienvenido a MagnetoQuest! Se te han asignado tus primeras misiones.'
+    });
+
   } catch (e) {
-    console.error(e);
+    console.error('❌ [Register] Error al crear usuario:', e);
+    res.status(500).json({ error: 'Error al crear usuario' });
+  }
+});
+
+// ENDPOINTS PARA GESTIÓN DE USUARIOS (GET / PUT)
+// Obtener usuario por id
+app.get('/api/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const user = await userRepo.findOne({ where: { id_app_user: userId } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(user);
+  } catch (e) {
+    console.error('Error fetching user:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Obtener intereses del usuario (parsed from interest_field)
+app.get('/api/users/:userId/interests', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const user = await userRepo.findOne({ where: { id_app_user: userId } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // interest_field stored as comma separated text in DB
+    const raw: string | null = (user as any).interest_field ?? null;
+    const interests = raw
+      ? raw.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : [];
+
+    // Return interests plus sector so frontend can map cards by sector
+    res.json({ interests, sector: (user as any).sector ?? null });
+  } catch (e) {
+    console.error('Error fetching user interests:', e);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Actualizar usuario (parcial)
+app.put('/api/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const payload = req.body ?? {};
+
+    const userRepo = AppDataSource.getRepository(AppUser);
+    const user = await userRepo.findOne({ where: { id_app_user: userId } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Campos permitidos para actualizar
+    const allowed = [
+      'name', 'email', 'sector', 'interest_field', 'target_position',
+      'minimum_salary', 'education_level', 'availability', 'city'
+    ];
+
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        // handle numeric conversion for minimum_salary
+        if (key === 'minimum_salary') {
+          const v = payload.minimum_salary;
+          (user as any).minimum_salary = (v === null || v === '') ? null : Number(v);
+        } else {
+          (user as any)[key] = payload[key] === '' ? null : payload[key];
+        }
+      }
+    }
+
+    await userRepo.save(user);
+    res.json(user);
+  } catch (e) {
+    console.error('Error updating user:', e);
     res.status(500).json({ error: 'DB error' });
   }
 });
@@ -1028,6 +1790,87 @@ app.put('/api/users/:userId/resume', async (req, res) => {
       // No fallar la respuesta si hay error en las misiones
     }
 
+    // ===============================================
+    // ACTUALIZAR BADGES DE TIPO CV (Onboarding 10/50/100)
+    // ===============================================
+    try {
+      // Recalcular campos completados con el resume guardado
+      const fields = [
+        resume.description,
+        resume.experience,
+        resume.courses,
+        resume.projects,
+        resume.languages,
+        resume.references_cv
+      ];
+      const filledCount = fields.reduce((acc, v) => acc + (v && v.toString().trim() !== '' ? 1 : 0), 0);
+
+      const checks: Array<{ min: number; badgeName: string }> = [
+        { min: 1, badgeName: 'Onboarding 10%' },
+        { min: 3, badgeName: 'Onboarding 50%' },
+        { min: 6, badgeName: 'Onboarding 100%' },
+      ];
+
+      for (const c of checks) {
+        if (filledCount >= c.min) {
+          // Asegurar que exista la fila badge_progress
+          await AppDataSource.query(
+            `
+            INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+            SELECT $1, b.badge_id, 0, NULL
+            FROM badge b
+            WHERE b.badge_name = $2
+            ON CONFLICT (user_id, badge_id) DO NOTHING
+            `,
+            [userId, c.badgeName]
+          );
+
+          // Intentar marcar la badge como otorgada solo si no estaba otorgada
+          const updated = await AppDataSource.query(
+            `
+            UPDATE badge_progress bp
+            SET
+              progress = COALESCE(b.quantity, 1),
+              awarded_at = NOW()
+            FROM badge b
+            WHERE bp.badge_id = b.badge_id
+              AND bp.user_id = $1
+              AND b.badge_name = $2
+              AND bp.awarded_at IS NULL
+            RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.badge_score AS badge_score
+            `,
+            [userId, c.badgeName]
+          );
+          console.log(updated)
+          try { console.log(updated[0] && updated[0][0] && updated[0][0].badge_score); } catch (e) { console.log('updated[0].badge_score ->', (e as any)?.message ?? e); }
+          if (updated && updated.length) {
+            const rows: any[] = Array.isArray(updated) && Array.isArray(updated[0]) ? updated[0] : (Array.isArray(updated) ? updated : []);
+            const awardedRows = rows.filter(r => r && r.awarded_at);
+            const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
+            if (totalToAdd > 0) {
+              await AppDataSource.query(
+                `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+                [userId, totalToAdd]
+              );
+              console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges CV al usuario ${userId}`);
+            }
+
+            for (const r of rows) {
+              console.log(`🏅 Badge otorgada: ${r.badge_name} -> ${r.progress} (score ${r.badge_score})`);
+
+              // 🔔 Crear notificación de badge otorgada
+              if (r.awarded_at) {
+                await createBadgeAwardNotification(userId, r.badge_name, r.badge_score, 'CV');
+              }
+            }
+          }
+        }
+      }
+    } catch (badgeErr) {
+      console.error('❌ Error actualizando badges CV:', badgeErr);
+      // No fallar la petición principal por errores en badges
+    }
+
     res.json(resume);
   } catch (e) {
     console.error('Error updating/creating resume:', e);
@@ -1062,36 +1905,78 @@ app.post('/api/trivia-attempts', async (req, res) => {
 
     // 🎯 ACTUALIZAR PROGRESO DE BADGES DE TIPO TRIVIA
     try {
-      const badgeProgressRepo = AppDataSource.getRepository(BadgeProgress);
-      
-      // Buscar todos los badge_progress del usuario que tengan badge con category = 'Trivia'
-      // y donde el progress actual sea menor que el quantity del badge
-      const triviaBadgeProgresses = await badgeProgressRepo
-        .createQueryBuilder('bp')
-        .innerJoinAndSelect('bp.badge', 'badge')
-        .where('bp.user_id = :userId', { userId: user_id })
-        .andWhere('badge.category = :category', { category: 'Trivia' })
-        .andWhere('bp.progress < badge.quantity')
-        .andWhere('bp.awarded_at IS NULL') // Solo badges no completados
-        .getMany();
+      // 1) Asegurar que existan las filas badge_progress para todos los badges de categoría 'Trivia'
+      //    Insertamos solo badges con quantity IS NOT NULL (los de intentos tienen quantity)
+      await AppDataSource.query(
+        `
+        INSERT INTO badge_progress (user_id, badge_id, progress, awarded_at)
+        SELECT $1, b.badge_id, 0, NULL
+        FROM badge b
+        WHERE b.category = 'Trivia' AND b.quantity IS NOT NULL
+        ON CONFLICT (user_id, badge_id) DO NOTHING
+        `,
+        [user_id]
+      );
 
-      console.log(`📊 Encontrados ${triviaBadgeProgresses.length} badges de Trivia para actualizar`);
+      // 2) Incrementar progress solo en badges no completados (awarded_at IS NULL)
+      //    y solo hasta la cantidad objetivo (no sobrepasar).
+      //    awarded_at se establece a NOW() únicamente cuando se cruza el umbral por primera vez.
+      const updatedRows = await AppDataSource.query(
+        `
+        UPDATE badge_progress bp
+        SET
+          progress = LEAST(bp.progress + 1, b.quantity),
+          awarded_at = CASE
+            WHEN bp.progress < b.quantity
+             AND bp.progress + 1 >= b.quantity
+             AND bp.awarded_at IS NULL
+            THEN NOW()
+            ELSE bp.awarded_at
+          END
+        FROM badge b
+        WHERE bp.badge_id = b.badge_id
+          AND bp.user_id = $1
+          AND b.category = 'Trivia'
+          AND b.quantity IS NOT NULL
+          AND bp.awarded_at IS NULL
+          AND bp.progress < b.quantity
+  RETURNING bp.badge_id AS badge_id, bp.progress AS progress, bp.awarded_at AS awarded_at, b.badge_name AS badge_name, b.quantity AS quantity, b.badge_score AS badge_score
+        `,
+        [user_id]
+      );
 
-      // Incrementar el progress de cada badge encontrado
-      for (const badgeProgress of triviaBadgeProgresses) {
-        badgeProgress.progress += 1;
-        
-        // Si alcanzó la cantidad requerida, marcar como completado
-        if (badgeProgress.progress >= badgeProgress.badge.quantity!) {
-          badgeProgress.awarded_at = new Date();
-          console.log(`🏆 Badge "${badgeProgress.badge.badge_name}" completado para usuario ${user_id}`);
+  console.log(`📊 Actualizados ${updatedRows.length} badge_progress(es) de Trivia para user ${user_id}`);
+  // Debug: inspect returned shape and badge_score
+  console.log(updatedRows);
+  try { console.log(updatedRows[0] && updatedRows[0][0] && updatedRows[0][0].badge_score); } catch (e) { console.log('updatedRows[0].badge_score ->', (e as any)?.message ?? e); }
+
+      if (updatedRows && updatedRows.length) {
+        const rows: any[] = Array.isArray(updatedRows) && Array.isArray(updatedRows[0]) ? updatedRows[0] : (Array.isArray(updatedRows) ? updatedRows : []);
+        const awardedRows = rows.filter(r => r && r.awarded_at);
+        const totalToAdd = awardedRows.reduce((acc: number, r: any) => acc + (Number(r.badge_score) || 0), 0);
+        if (totalToAdd > 0) {
+          await AppDataSource.query(
+            `UPDATE user_progress SET magento_points = magento_points + $2, updated_at = NOW() WHERE user_id = $1`,
+            [user_id, totalToAdd]
+          );
+          console.log(`💰 Añadidos ${totalToAdd} MagnetoPoints por badges Trivia al usuario ${user_id}`);
         }
-        
-        await badgeProgressRepo.save(badgeProgress);
-        console.log(`✅ Progress actualizado para badge "${badgeProgress.badge.badge_name}": ${badgeProgress.progress}/${badgeProgress.badge.quantity}`);
+
+        for (const r of rows) {
+          const name = r.badge_name || r.badge_id;
+          const progress = r.progress;
+          const qty = r.quantity;
+          const awarded = r.awarded_at ? '🏆 awarded' : '';
+          console.log(`✅ Badge "${name}" -> ${progress}/${qty} ${awarded}`);
+
+          // 🔔 Crear notificación si el badge fue otorgado
+          if (r.awarded_at) {
+            await createBadgeAwardNotification(user_id, r.badge_name, r.badge_score, 'Trivia');
+          }
+        }
       }
     } catch (badgeError) {
-      console.error('❌ Error al actualizar progreso de badges:', badgeError);
+      console.error('❌ Error al actualizar progreso de badges (trivia):', badgeError);
       // No fallar la petición principal si hay error en badges
     }
 
@@ -1165,6 +2050,28 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
   }
 });
 
+// ========== TEST ENDPOINTS ==========
+/**
+ * Endpoint de prueba para enviar notificaciones de Application missions manualmente
+ */
+app.post('/api/test/notifications/application-missions', async (req, res) => {
+  try {
+    console.log('🧪 Manual test: Sending Application mission notifications...');
+    const notificationService = new NotificationService();
+    await notificationService.testApplicationMissionNotifications();
+    res.json({ 
+      success: true, 
+      message: 'Application mission notifications sent successfully'
+    });
+  } catch (error: any) {
+    console.error('Error in test endpoint:', error);
+    res.status(500).json({ 
+      error: 'Failed to send Application mission notifications', 
+      details: error.message 
+    });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 
 // Inicializa TypeORM y arranca el server
@@ -1182,6 +2089,12 @@ AppDataSource.initialize()
     
     // 🔄 Iniciar el servicio de reset diario
     dailyResetService.start();
+    
+    // 🎯 Iniciar el servicio de rotación de misiones
+    missionDelegateService.start();
+    
+    // 📧 Iniciar el servicio de notificaciones
+    notificationService.initializeCronJobs();
     
     app.listen(PORT, (): void => console.log(`API http://localhost:${PORT}`));
   }) as TypeORMInitSuccess)

@@ -12,6 +12,18 @@ export enum MissionCategory {
   CERTIFICATE = 'Certificate',
   PROJECT = 'Project',
   CV = 'CV',
+  APPLICATION = 'Application',
+  TRIVIA_SPECIAL = 'Trivia_Special',
+  TRIVIA_ABILITIES = 'Trivia_Abilities',
+  TRIVIA_INTERVIEW = 'Trivia_Interview',
+  TRIVIA_EMPLOYMENT = 'Trivia_Employment',
+}
+
+export enum MissionFrequency {
+  DAILY = 'daily',
+  FLASH = 'flash',
+  WEEKLY = 'weekly',
+  MONTHLY = 'monthly',
 }
 
 @Entity({ name: 'mission' })
@@ -34,6 +46,14 @@ export class Mission {
     nullable: true 
   })
   category!: MissionCategory | null;
+
+  @Column({ 
+    name: 'frequency', 
+    type: 'enum',
+    enum: MissionFrequency,
+    default: MissionFrequency.WEEKLY
+  })
+  frequency!: MissionFrequency;
 
   @Column({ name: 'xp_reward', type: 'int', default: 10 })
   xp_reward!: number;
