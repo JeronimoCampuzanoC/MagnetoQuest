@@ -275,7 +275,7 @@ INSERT INTO mission (title, description, category, frequency, xp_reward, objecti
     ('Sprint de Aplicaciones', 'Esta empresa vio tu perfil y dijo: Queremos a alguien así. No dejes que otro se siente en esa silla. Mira la vacante antes de que cierre Ingeniero Especialista Azure Devops SYNERGY TECHNOLOGY AND PROCESS CONSULTING S A S $5,800,000', 'Application', 'flash', 100, 1, TRUE),
 
     -- Misiones Semanales - Trivias Especiales por Categoría
-    ('Trivia de Habilidades', 'Completa una trivia sobre habilidades técnicas', 'Trivia_Abilities', 'weekly', 75, 1, TRUE),
+    ('Trivia de Habilidades', 'Completa una trivia sobre habilidades blandas', 'Trivia_Abilities', 'weekly', 75, 1, TRUE),
     ('Trivia de Entrevistas', 'Practica preguntas de entrevistas con trivia', 'Trivia_Interview', 'weekly', 75, 1, TRUE),
     ('Trivia de Empleo', 'Resuelve una trivia sobre el mundo laboral', 'Trivia_Employment', 'weekly', 75, 1, TRUE),
     

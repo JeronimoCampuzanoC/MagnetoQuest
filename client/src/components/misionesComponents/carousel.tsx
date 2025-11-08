@@ -113,7 +113,6 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = 
 
       // Guardar en localStorage
       localStorage.setItem('triviaConfig', JSON.stringify(triviaConfig));
-      localStorage.setItem('triviaType', "1");
 
       console.log(' Configuración guardada:', triviaConfig);
 
