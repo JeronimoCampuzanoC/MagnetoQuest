@@ -351,7 +351,15 @@ export default function TriviaApp() {
                   title={topicDescription}
                   style={{ whiteSpace: 'pre-wrap' }}
                 >
-                  <>¡Estás a punto de embarcarte en un desafío increíble! Prepárate para poner a prueba tus conocimientos sobre <b>{topicDescription}</b>. Responde a los retos que hemos preparado para ti, ¡y demuestra todo lo que sabes! ¿Te atreves a superar cada pregunta?</>
+                  {
+                    // Si el tema es uno de los especificados, mostrar solo la descripción
+                    ['Habilidades blandas', 'Empleo Colombiano', 'Entrevistas'].includes(topicName)
+                      ? (
+                        <>{topicDescription}</>
+                      ) : (
+                        <>¡Estás a punto de embarcarte en un desafío increíble! Prepárate para poner a prueba tus conocimientos sobre <b>{topicDescription}</b>. Responde a los retos que hemos preparado para ti, ¡y demuestra todo lo que sabes! ¿Te atreves a superar cada pregunta?</>
+                      )
+                  }
                 </div>
               </div>
 
