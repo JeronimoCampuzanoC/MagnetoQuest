@@ -367,7 +367,7 @@ export default function TriviaApp() {
                 >
                   {
                     // Si el tema es uno de los especificados, mostrar solo la descripción
-                    ['Habilidades blandas', 'Empleo Colombiano', 'Entrevistas'].includes(topicName)
+                    ['Habilidades Blandas', 'Empleo Colombiano', 'Entrevistas'].includes(topicName)
                       ? (
                         <>{topicDescription}</>
                       ) : (

@@ -138,6 +138,17 @@
   padding-bottom: 32px;
 }
 
+/* 🎨 Personalizar los puntitos de paginación de Swiper */
+.container :global(.swiper-pagination-bullet) {
+  background: #22c55e !important; /* Verde */
+  opacity: 0.5;
+}
+
+.container :global(.swiper-pagination-bullet-active) {
+  background: #22c55e !important; /* Verde */
+  opacity: 1;
+}
+
 .slide {
   width: 350px;         /* 👈 tamaño del slide: ajusta a gusto */
   height: 220px;

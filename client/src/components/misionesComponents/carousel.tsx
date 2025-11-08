@@ -19,9 +19,9 @@ type Item = {
 };
 
 const DATA: Item[] = [
-  { id: 1, title: "Habilidades Blandas", type: "Habilidades", description: "Situacionales sobre habilidades blandas, con viñetas realistas que evalúen toma de decisiones, comunicación asertiva, manejo de conflictos, liderazgo, colaboración, empatía, feedback efectivo y priorización bajo presión." },
-  { id: 2, title: "Entrevistas", type: "Entrevistas", description: "Preparación de entrevistas con énfasis en {ROL_O_TÓPICO} (p. ej., comportamentales, liderazgo, negociación salarial, métricas de impacto, comunicación ejecutiva), usando ejemplos prácticos." },
-  { id: 3, title: "Empleo Colombiano", type: "Empleo", description: "Genera preguntas situacionales sobre temas laborales en Colombia (por ejemplo, cómo pedir vacaciones, qué pasa con la prima, qué hacer si no me afilian), usando casos cotidianos y opciones comprensibles." },
+  { id: 1, title: "Habilidades Blandas", type: "Habilidades", description: "Situacionales sobre habilidades blandas, con viñetas realistas que evalúen toma de decisiones, comunicación asertiva, manejo de conflictos, liderazgo, colaboración, empatía, feedback efectivo y priorización bajo presión.", image: "/static/imagenesTrivia/imagenTrivia1.png" },
+  { id: 2, title: "Entrevistas", type: "Entrevistas", description: "Preparación de entrevistas con énfasis en {ROL_O_TÓPICO} (p. ej., comportamentales, liderazgo, negociación salarial, métricas de impacto, comunicación ejecutiva), usando ejemplos prácticos.", image: "/static/imagenesTrivia/imagenTrivia5.png" },
+  { id: 3, title: "Empleo Colombiano", type: "Empleo", description: "Genera preguntas situacionales sobre temas laborales en Colombia (por ejemplo, cómo pedir vacaciones, qué pasa con la prima, qué hacer si no me afilian), usando casos cotidianos y opciones comprensibles.", image: "/static/imagenesTrivia/imagenTrivia6.png" },
 ];
 
 
@@ -58,7 +58,8 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = 
           id: 1000 + idx,
           title: sector || 'Tu sector',
           type: 'Especial',
-          description: interest
+          description: interest,
+          image: `/static/imagenesTrivia/imagenTrivia${idx + 2}.jpeg` // Imágenes 4, 5, 6
         }));
 
         setItems(prev => {
@@ -149,7 +150,7 @@ const GameStyleCarousel: React.FC<Props> = ({ autoPlayMs = 2800, hasDoneToday = 
               title={item.title}
               type={item.type}
               description={item.description}
-              image="https://picsum.photos/200/200"
+              image={item.image || "https://picsum.photos/200/200"}
               onClick={handleCardClick}
             />
           </SwiperSlide>
