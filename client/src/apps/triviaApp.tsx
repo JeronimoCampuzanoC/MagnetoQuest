@@ -57,7 +57,7 @@ export default function TriviaApp() {
 
     if (savedConfig) {
       const config = JSON.parse(savedConfig);
-      // config tendrá: { userId, title, description }
+      // config tendrá: { userId, title, type, description }
       setUserId(config.userId);
       setTopicName(config.title);
       setTopicDescription(config.description);
@@ -349,13 +349,27 @@ export default function TriviaApp() {
 
       console.log('Guardando intento para usuario:', currentUserId);
 
+      // Recuperar tipo de trivia del triviaConfig
+      let triviaType: string | undefined;
+      try {
+        const savedConfig = localStorage.getItem('triviaConfig');
+        if (savedConfig) {
+          const config = JSON.parse(savedConfig);
+          triviaType = config.type;
+          console.log('🎯 [TriviaApp] Tipo de trivia:', triviaType);
+        }
+      } catch (e) {
+        console.warn('⚠️ [TriviaApp] No se pudo obtener tipo de trivia del config');
+      }
+
       const attempt = {
         user_id: currentUserId,
         category: topicName,
         difficulty: difficulty,
         score: results.totalScore,
         total_time: results.duration,
-        precision_score: Math.round(results.summary.averageAccuracy)
+        precision_score: Math.round(results.summary.averageAccuracy),
+        trivia_type: triviaType // 👈 Nuevo campo
       };
 
       const response = await fetch('http://localhost:4000/api/trivia-attempts', {
