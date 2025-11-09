@@ -5,6 +5,54 @@ import { useNavigate } from 'react-router-dom';
 import styles from './triviaApp.module.css';
 import { TriviaService, TriviaTopicConfig, TriviaQuestion, EvaluationResult, TriviaProgress, TriviaResults } from '../services/triviaService';
 
+// Declaración de tipos para Web Speech API
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 // Controla las diferentes pantallas que le mostramos al usuario
 type Screen = 'start' | 'question' | 'results';
 
@@ -42,6 +90,10 @@ export default function TriviaApp() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
 
+  // Estados para el dictado por voz
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+
   useEffect(() => {
     const savedConfig = localStorage.getItem('triviaConfig');
 
@@ -56,6 +108,68 @@ export default function TriviaApp() {
     }
   }, []);
 
+  // Inicializar el reconocimiento de voz
+  useEffect(() => {
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognitionInstance = new SpeechRecognitionAPI();
+
+      recognitionInstance.continuous = true;
+      recognitionInstance.interimResults = true;
+      recognitionInstance.lang = 'es-ES';
+
+      recognitionInstance.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setUserAnswer(prev => prev + finalTranscript);
+        }
+      };
+
+      recognitionInstance.onerror = (event: any) => {
+        console.error('Error en reconocimiento de voz:', event.error);
+        setIsListening(false);
+        if (event.error === 'no-speech') {
+          setError('No se detectó ninguna voz. Intenta de nuevo.');
+        } else if (event.error === 'not-allowed') {
+          setError('Permiso de micrófono denegado. Por favor, permite el acceso al micrófono.');
+        }
+      };
+
+      recognitionInstance.onend = () => {
+        setIsListening(false);
+      };
+
+      setRecognition(recognitionInstance);
+    }
+  }, []);
+
+  // Función para iniciar/detener el dictado
+  const toggleDictation = () => {
+    if (!recognition) {
+      setError('Tu navegador no soporta reconocimiento de voz.');
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      setError(null);
+      recognition.start();
+      setIsListening(true);
+    }
+  };
 
   useEffect(() => {
     if (screen !== 'question') {
@@ -90,7 +204,7 @@ export default function TriviaApp() {
       setScreen('question'); // Cambia a la pantalla de preguntas
       setEvaluation(null);
       setNextQuestionPreloaded(null);
-  setResultsAvailable(false);
+      setResultsAvailable(false);
       console.log('✅ [TriviaApp] Trivia iniciada correctamente');
     } catch (err) {
       console.error('❌ [TriviaApp] Error al iniciar:', err);
@@ -276,9 +390,9 @@ export default function TriviaApp() {
       console.log('✅ Intento de trivia guardado correctamente');
 
       // Calcular el score final directamente
-      const finalScore = results.totalScore % 10 === 0 
+      const finalScore = results.totalScore % 10 === 0
         ? results.totalScore * 2  // Si es múltiplo de 10
-        : (results.totalScore * 2) + (10 - ((results.totalScore*2) % 10));  // Si no es múltiplo de 10
+        : (results.totalScore * 2) + (10 - ((results.totalScore * 2) % 10));  // Si no es múltiplo de 10
 
       // 🎯 Actualizar el progreso diario del usuario (streak y has_done_today)
       try {
@@ -287,7 +401,7 @@ export default function TriviaApp() {
           headers: {
             'Content-Type': 'application/json',
           },
-      
+
           body: JSON.stringify({ score: finalScore })
         });
 
@@ -505,13 +619,39 @@ export default function TriviaApp() {
 
                 <div className={styles.answerContainer}>
                   <label className={styles.answerLabel}>Tu respuesta:</label>
-                  <textarea
-                    className={styles.answerTextarea}
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    placeholder="Escribe tu respuesta detallada aquí..."
-                    disabled={loading}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <textarea
+                      className={styles.answerTextarea}
+                      value={userAnswer}
+                      onChange={(e) => setUserAnswer(e.target.value)}
+                      placeholder="Escribe tu respuesta detallada aquí o usa el micrófono para dictar..."
+                      disabled={loading}
+                    />
+                    <div className={styles.micButtonWrapper}>
+                      {isListening && (
+                        <>
+                          <div className={styles.rippleEffect}></div>
+                          <div className={styles.rippleEffect}></div>
+                          <div className={styles.rippleEffect}></div>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={toggleDictation}
+                        disabled={loading}
+                        className={`${styles.micButton} ${isListening ? styles.micButtonActive : ''}`}
+                        title={isListening ? 'Detener dictado' : 'Iniciar dictado'}
+                      >
+                        {isListening ? '⏸️' : '🎤'}
+                      </button>
+                    </div>
+                  </div>
+                  {isListening && (
+                    <div className={styles.listeningIndicator}>
+                      <span style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>🔴</span>
+                      Escuchando...
+                    </div>
+                  )}
                 </div>
 
                 <div className={styles.buttonContainer}>
