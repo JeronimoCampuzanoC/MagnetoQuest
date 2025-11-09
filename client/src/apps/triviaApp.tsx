@@ -42,6 +42,16 @@ export default function TriviaApp() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
 
+  // Estados para animación de "escritura" de pregunta y pista
+  const [displayedQuestion, setDisplayedQuestion] = useState('');
+  const [displayedHint, setDisplayedHint] = useState('');
+  const [isTypingQuestion, setIsTypingQuestion] = useState(false);
+  const [isTypingHint, setIsTypingHint] = useState(false);
+  // Estados para animación de "escritura" del feedback
+  const [displayedFeedback, setDisplayedFeedback] = useState('');
+  const [displayedExpectedAnswer, setDisplayedExpectedAnswer] = useState('');
+  const [isTypingFeedback, setIsTypingFeedback] = useState(false);
+
   useEffect(() => {
     const savedConfig = localStorage.getItem('triviaConfig');
 
@@ -99,6 +109,107 @@ export default function TriviaApp() {
       setLoading(false);
     }
   };
+
+  // Efecto de "escritura" para pregunta y pista
+  useEffect(() => {
+    if (screen === 'question' && currentQuestion) {
+      setDisplayedQuestion('');
+      setDisplayedHint('');
+      setIsTypingQuestion(true);
+      setIsTypingHint(false);
+      // Animar pregunta
+      let qIndex = 0;
+      const questionText = currentQuestion.question;
+      const typeSpeed = 18; // ms por letra
+      function typeQuestion() {
+        if (qIndex <= questionText.length) {
+          setDisplayedQuestion(questionText.slice(0, qIndex));
+          qIndex++;
+          setTimeout(typeQuestion, typeSpeed);
+        } else {
+          setIsTypingQuestion(false);
+          // Si hay pista, animar pista
+          if (currentQuestion && currentQuestion.hint) {
+            setIsTypingHint(true);
+            let hIndex = 0;
+            const hintText = currentQuestion.hint;
+            function typeHint() {
+              if (hIndex <= hintText.length) {
+                setDisplayedHint(hintText.slice(0, hIndex));
+                hIndex++;
+                setTimeout(typeHint, typeSpeed);
+              } else {
+                setIsTypingHint(false);
+              }
+            }
+            typeHint();
+          }
+        }
+      }
+      typeQuestion();
+    } else {
+      setDisplayedQuestion('');
+      setDisplayedHint('');
+      setIsTypingQuestion(false);
+      setIsTypingHint(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, currentQuestion]);
+
+  // Efecto de "escritura" para el feedback / respuesta esperada cuando cambia evaluation
+  useEffect(() => {
+    if (evaluation) {
+      setDisplayedFeedback('');
+      setDisplayedExpectedAnswer('');
+      setIsTypingFeedback(true);
+
+      const typeSpeed = 18; // ms por letra (coincide con pregunta)
+      const timers: number[] = [];
+
+      let fIndex = 0;
+      const feedbackText = evaluation.feedback || '';
+      const expectedText = evaluation.expectedAnswer || '';
+
+      function typeFeedback() {
+        if (fIndex <= feedbackText.length) {
+          setDisplayedFeedback(feedbackText.slice(0, fIndex));
+          fIndex++;
+          timers.push(window.setTimeout(typeFeedback, typeSpeed));
+        } else {
+          // Después del feedback, escribir la respuesta esperada (si existe)
+          let eIndex = 0;
+
+          function typeExpected() {
+            if (eIndex <= expectedText.length) {
+              setDisplayedExpectedAnswer(expectedText.slice(0, eIndex));
+              eIndex++;
+              timers.push(window.setTimeout(typeExpected, typeSpeed));
+            } else {
+              setIsTypingFeedback(false);
+            }
+          }
+
+          if (expectedText.length > 0) {
+            typeExpected();
+          } else {
+            setIsTypingFeedback(false);
+          }
+        }
+      }
+
+      typeFeedback();
+
+      return () => {
+        timers.forEach((t) => clearTimeout(t));
+        setIsTypingFeedback(false);
+      };
+    } else {
+      setDisplayedFeedback('');
+      setDisplayedExpectedAnswer('');
+      setIsTypingFeedback(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evaluation]);
 
   // Enviar respuesta y precargar siguiente pregunta en paralelo
   const handleSubmitAnswer = async () => {
@@ -353,7 +464,7 @@ export default function TriviaApp() {
                 >
                   {
                     // Si el tema es uno de los especificados, mostrar solo la descripción
-                    ['Habilidades blandas', 'Empleo Colombiano', 'Entrevistas'].includes(topicName)
+                    ['Habilidades Blandas', 'Empleo Colombiano', 'Entrevistas'].includes(topicName)
                       ? (
                         <>{topicDescription}</>
                       ) : (
@@ -448,13 +559,17 @@ export default function TriviaApp() {
                 <div className={styles.feedbackScore}>
                   Puntuación: {evaluation.score}/10 | Precisión: {evaluation.accuracy}%
                 </div>
-                <div className={styles.feedbackText}>{evaluation.feedback}</div>
+                <div className={styles.feedbackText}>
+                  {displayedFeedback}
+                  {isTypingFeedback && <span className={styles.typingCursor}>|</span>}
+                </div>
                 <div className={styles.expectedAnswer}>
                   <span className={styles.expectedAnswerLabel}>
                     💡 Respuesta esperada:
                   </span>
                   <div className={styles.expectedAnswerText}>
-                    {evaluation.expectedAnswer}
+                    {displayedExpectedAnswer}
+                    {isTypingFeedback && <span className={styles.typingCursor}>|</span>}
                   </div>
                 </div>
 
@@ -480,11 +595,17 @@ export default function TriviaApp() {
                     Pregunta {currentQuestion.questionNumber} - Dificultad:{' '}
                     {currentQuestion.difficulty}
                   </div>
-                  <div className={styles.questionText}>{currentQuestion.question}</div>
+                  <div className={styles.questionText}>
+                    {displayedQuestion}
+                    {isTypingQuestion && <span className={styles.typingCursor}>|</span>}
+                  </div>
                   {currentQuestion.hint && (
                     <div className={styles.hint}>
                       <span className={styles.hintIcon}>💡</span>
-                      <span>{currentQuestion.hint}</span>
+                      <span>
+                        {displayedHint}
+                        {isTypingHint && <span className={styles.typingCursor}>|</span>}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -496,7 +617,7 @@ export default function TriviaApp() {
                     value={userAnswer}
                     onChange={(e) => setUserAnswer(e.target.value)}
                     placeholder="Escribe tu respuesta detallada aquí..."
-                    disabled={loading}
+                    disabled={loading || isTypingQuestion || isTypingHint}
                   />
                 </div>
 
@@ -504,7 +625,7 @@ export default function TriviaApp() {
                   <button
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={handleSubmitAnswer}
-                    disabled={loading || !userAnswer.trim()}
+                    disabled={loading || !userAnswer.trim() || isTypingQuestion || isTypingHint}
                   >
                     {loading ? 'Evaluando...' : ' Enviar Respuesta'}
                   </button>
@@ -519,6 +640,7 @@ export default function TriviaApp() {
                   <button
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={handleViewResults}
+                    disabled={isTypingFeedback}
                   >
                     Ver resultados
                   </button>
@@ -526,7 +648,7 @@ export default function TriviaApp() {
                   <button
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={handleNextQuestion}
-                    disabled={!nextQuestionPreloaded || isPreloading}
+                    disabled={!nextQuestionPreloaded || isPreloading || isTypingFeedback}
                   >
                     {isPreloading
                       ? ' Cargando...'
