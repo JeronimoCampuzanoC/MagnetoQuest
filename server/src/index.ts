@@ -2077,6 +2077,7 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const repo = AppDataSource.getRepository(TriviaAttempt);
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
 
     // Obtener promedios
     const averagesQuery = await repo
@@ -2118,6 +2119,11 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
       difficultyCounts[difficulty] = parseInt(item.count) || 0;
     });
 
+    // Obtener datos de progreso del usuario (streak, has_done_today, magento_points)
+    const userProgress = await userProgressRepo.findOne({
+      where: { user_id: userId }
+    });
+
     // Combinar resultados
     const stats = {
       averages: {
@@ -2125,7 +2131,12 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
         precision: parseFloat(averagesQuery.average_precision || '0'),
         time: parseFloat(averagesQuery.average_time || '0')
       },
-      attemptsByDifficulty: difficultyCounts
+      attemptsByDifficulty: difficultyCounts,
+      userProgress: {
+        streak: userProgress?.streak || 0,
+        hasDoneToday: userProgress?.has_done_today || false,
+        magentoPoints: userProgress?.magento_points || 0
+      }
     };
 
     res.json(stats);
