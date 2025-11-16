@@ -317,6 +317,101 @@
   font-size: 0.95rem;
 } */
 
+/* Streak Card */
+.streakCard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.streakHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.streakInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.streakFlame {
+  font-size: 3rem;
+  animation: flameFlicker 1.5s ease-in-out infinite;
+}
+
+@keyframes flameFlicker {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.streakText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.streakNumber {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1;
+}
+
+.streakLabel {
+  font-size: 0.95rem;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.streakStatus {
+  display: flex;
+  align-items: center;
+}
+
+.statusBadgeActive,
+.statusBadgeInactive {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.statusBadgeActive {
+  background-color: rgba(40, 167, 69, 0.9);
+  color: white;
+}
+
+.statusBadgeInactive {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.magentoPoints {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.pointsLabel {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.pointsValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .cardsRow {
@@ -334,6 +429,20 @@
   }
 
   .scoreNumber {
+    font-size: 2.5rem;
+  }
+
+  .streakHeader {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .streakNumber {
+    font-size: 2rem;
+  }
+
+  .streakFlame {
     font-size: 2.5rem;
   }
 }

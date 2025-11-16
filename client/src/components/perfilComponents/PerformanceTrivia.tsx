@@ -13,6 +13,11 @@ interface TriviaStats {
     medium: number;
     hard: number;
   };
+  userProgress: {
+    streak: number;
+    hasDoneToday: boolean;
+    magentoPoints: number;
+  };
 }
 
 export default function PerformanceTrivia() {
@@ -24,14 +29,14 @@ export default function PerformanceTrivia() {
     const fetchStats = async () => {
       try {
         const userId = AuthService.getCurrentUserId();
-        
+
         if (!userId) {
           throw new Error('Usuario no autenticado');
         }
 
         const url = `http://localhost:4000/api/trivia-stats/${userId}`;
         const response = await fetch(url);
-        
+
         if (!response.ok) {
           throw new Error('Error al obtener estadísticas');
         }
@@ -74,9 +79,9 @@ export default function PerformanceTrivia() {
     );
   }
 
-  const totalAttempts = 
-    Number(stats.attemptsByDifficulty.easy) + 
-    Number(stats.attemptsByDifficulty.medium) + 
+  const totalAttempts =
+    Number(stats.attemptsByDifficulty.easy) +
+    Number(stats.attemptsByDifficulty.medium) +
     Number(stats.attemptsByDifficulty.hard);
 
   const hasAttempts = totalAttempts > 0;
@@ -94,7 +99,7 @@ export default function PerformanceTrivia() {
           <div className={styles.headerCard}>
             <div className={styles.headerContent}>
               <div className={styles.headerText}>
-                
+
                 <div className={styles.headerScore}>
                   <span className={styles.scoreNumber}>{totalAttempts}</span>
                 </div>
@@ -125,20 +130,44 @@ export default function PerformanceTrivia() {
             </p>
           </div>
 
+          {/* Card de Racha */}
+          <div className={styles.streakCard}>
+            <div className={styles.streakHeader}>
+              <div className={styles.streakInfo}>
+                <div className={styles.streakFlame}>🔥</div>
+                <div className={styles.streakText}>
+                  <h3 className={styles.streakNumber}>{stats.userProgress.streak}</h3>
+                  <p className={styles.streakLabel}>Días de racha</p>
+                </div>
+              </div>
+              <div className={styles.streakStatus}>
+                {stats.userProgress.hasDoneToday ? (
+                  <span className={styles.statusBadgeActive}>✓ Completado hoy</span>
+                ) : (
+                  <span className={styles.statusBadgeInactive}>○ Pendiente hoy</span>
+                )}
+              </div>
+            </div>
+            <div className={styles.magentoPoints}>
+              <span className={styles.pointsLabel}>Magneto Points</span>
+              <span className={styles.pointsValue}>⚡ {stats.userProgress.magentoPoints}</span>
+            </div>
+          </div>
+
           <div className={styles.cardsRow}>
             {/* Card Izquierda - Promedios */}
             <div className={styles.card}>
               <h5 className={styles.cardTitle}>Promedios Generales</h5>
-              
+
               <div className={styles.statItem}>
                 <div className={styles.statHeader}>
                   <span className={styles.statLabel}>Puntaje</span>
                   <span className={styles.statValue}>{stats.averages.score.toFixed(1)}/100</span>
                 </div>
                 <div className={styles.progressContainer}>
-                  <div 
+                  <div
                     className={styles.progressFill}
-                    style={{ 
+                    style={{
                       width: `${stats.averages.score}%`,
                       backgroundColor: stats.averages.score >= 70 ? '#28a745' : stats.averages.score >= 50 ? '#ffc107' : '#dc3545'
                     }}
@@ -152,9 +181,9 @@ export default function PerformanceTrivia() {
                   <span className={styles.statValue}>{stats.averages.precision.toFixed(1)}%</span>
                 </div>
                 <div className={styles.progressContainer}>
-                  <div 
+                  <div
                     className={styles.progressFill}
-                    style={{ 
+                    style={{
                       width: `${stats.averages.precision}%`,
                       backgroundColor: '#17a2b8'
                     }}
@@ -169,7 +198,7 @@ export default function PerformanceTrivia() {
                     {Math.floor(stats.averages.time / 60)}:{(stats.averages.time % 60).toFixed(0).padStart(2, '0')} min
                   </span>
                 </div>
-            
+
               </div>
             </div>
 

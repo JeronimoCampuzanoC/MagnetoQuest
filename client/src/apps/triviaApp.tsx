@@ -5,6 +5,54 @@ import { useNavigate } from 'react-router-dom';
 import styles from './triviaApp.module.css';
 import { TriviaService, TriviaTopicConfig, TriviaQuestion, EvaluationResult, TriviaProgress, TriviaResults } from '../services/triviaService';
 
+// Declaración de tipos para Web Speech API
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 // Controla las diferentes pantallas que le mostramos al usuario
 type Screen = 'start' | 'question' | 'results';
 
@@ -42,12 +90,27 @@ export default function TriviaApp() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
 
+
+  // Estados para animación de "escritura" de pregunta y pista
+  const [displayedQuestion, setDisplayedQuestion] = useState('');
+  const [displayedHint, setDisplayedHint] = useState('');
+  const [isTypingQuestion, setIsTypingQuestion] = useState(false);
+  const [isTypingHint, setIsTypingHint] = useState(false);
+  // Estados para animación de "escritura" del feedback
+  const [displayedFeedback, setDisplayedFeedback] = useState('');
+  const [displayedExpectedAnswer, setDisplayedExpectedAnswer] = useState('');
+  const [isTypingFeedback, setIsTypingFeedback] = useState(false);
+
+  // Estados para el dictado por voz
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+
   useEffect(() => {
     const savedConfig = localStorage.getItem('triviaConfig');
 
     if (savedConfig) {
       const config = JSON.parse(savedConfig);
-      // config tendrá: { userId, title, description }
+      // config tendrá: { userId, title, type, description }
       setUserId(config.userId);
       setTopicName(config.title);
       setTopicDescription(config.description);
@@ -56,6 +119,68 @@ export default function TriviaApp() {
     }
   }, []);
 
+  // Inicializar el reconocimiento de voz
+  useEffect(() => {
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognitionInstance = new SpeechRecognitionAPI();
+
+      recognitionInstance.continuous = true;
+      recognitionInstance.interimResults = true;
+      recognitionInstance.lang = 'es-ES';
+
+      recognitionInstance.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setUserAnswer(prev => prev + finalTranscript);
+        }
+      };
+
+      recognitionInstance.onerror = (event: any) => {
+        console.error('Error en reconocimiento de voz:', event.error);
+        setIsListening(false);
+        if (event.error === 'no-speech') {
+          setError('No se detectó ninguna voz. Intenta de nuevo.');
+        } else if (event.error === 'not-allowed') {
+          setError('Permiso de micrófono denegado. Por favor, permite el acceso al micrófono.');
+        }
+      };
+
+      recognitionInstance.onend = () => {
+        setIsListening(false);
+      };
+
+      setRecognition(recognitionInstance);
+    }
+  }, []);
+
+  // Función para iniciar/detener el dictado
+  const toggleDictation = () => {
+    if (!recognition) {
+      setError('Tu navegador no soporta reconocimiento de voz.');
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      setError(null);
+      recognition.start();
+      setIsListening(true);
+    }
+  };
 
   useEffect(() => {
     if (screen !== 'question') {
@@ -90,7 +215,7 @@ export default function TriviaApp() {
       setScreen('question'); // Cambia a la pantalla de preguntas
       setEvaluation(null);
       setNextQuestionPreloaded(null);
-  setResultsAvailable(false);
+      setResultsAvailable(false);
       console.log('✅ [TriviaApp] Trivia iniciada correctamente');
     } catch (err) {
       console.error('❌ [TriviaApp] Error al iniciar:', err);
@@ -99,6 +224,107 @@ export default function TriviaApp() {
       setLoading(false);
     }
   };
+
+  // Efecto de "escritura" para pregunta y pista
+  useEffect(() => {
+    if (screen === 'question' && currentQuestion) {
+      setDisplayedQuestion('');
+      setDisplayedHint('');
+      setIsTypingQuestion(true);
+      setIsTypingHint(false);
+      // Animar pregunta
+      let qIndex = 0;
+      const questionText = currentQuestion.question;
+      const typeSpeed = 18; // ms por letra
+      function typeQuestion() {
+        if (qIndex <= questionText.length) {
+          setDisplayedQuestion(questionText.slice(0, qIndex));
+          qIndex++;
+          setTimeout(typeQuestion, typeSpeed);
+        } else {
+          setIsTypingQuestion(false);
+          // Si hay pista, animar pista
+          if (currentQuestion && currentQuestion.hint) {
+            setIsTypingHint(true);
+            let hIndex = 0;
+            const hintText = currentQuestion.hint;
+            function typeHint() {
+              if (hIndex <= hintText.length) {
+                setDisplayedHint(hintText.slice(0, hIndex));
+                hIndex++;
+                setTimeout(typeHint, typeSpeed);
+              } else {
+                setIsTypingHint(false);
+              }
+            }
+            typeHint();
+          }
+        }
+      }
+      typeQuestion();
+    } else {
+      setDisplayedQuestion('');
+      setDisplayedHint('');
+      setIsTypingQuestion(false);
+      setIsTypingHint(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, currentQuestion]);
+
+  // Efecto de "escritura" para el feedback / respuesta esperada cuando cambia evaluation
+  useEffect(() => {
+    if (evaluation) {
+      setDisplayedFeedback('');
+      setDisplayedExpectedAnswer('');
+      setIsTypingFeedback(true);
+
+      const typeSpeed = 18; // ms por letra (coincide con pregunta)
+      const timers: number[] = [];
+
+      let fIndex = 0;
+      const feedbackText = evaluation.feedback || '';
+      const expectedText = evaluation.expectedAnswer || '';
+
+      function typeFeedback() {
+        if (fIndex <= feedbackText.length) {
+          setDisplayedFeedback(feedbackText.slice(0, fIndex));
+          fIndex++;
+          timers.push(window.setTimeout(typeFeedback, typeSpeed));
+        } else {
+          // Después del feedback, escribir la respuesta esperada (si existe)
+          let eIndex = 0;
+
+          function typeExpected() {
+            if (eIndex <= expectedText.length) {
+              setDisplayedExpectedAnswer(expectedText.slice(0, eIndex));
+              eIndex++;
+              timers.push(window.setTimeout(typeExpected, typeSpeed));
+            } else {
+              setIsTypingFeedback(false);
+            }
+          }
+
+          if (expectedText.length > 0) {
+            typeExpected();
+          } else {
+            setIsTypingFeedback(false);
+          }
+        }
+      }
+
+      typeFeedback();
+
+      return () => {
+        timers.forEach((t) => clearTimeout(t));
+        setIsTypingFeedback(false);
+      };
+    } else {
+      setDisplayedFeedback('');
+      setDisplayedExpectedAnswer('');
+      setIsTypingFeedback(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evaluation]);
 
   // Enviar respuesta y precargar siguiente pregunta en paralelo
   const handleSubmitAnswer = async () => {
@@ -238,13 +464,27 @@ export default function TriviaApp() {
 
       console.log('Guardando intento para usuario:', currentUserId);
 
+      // Recuperar tipo de trivia del triviaConfig
+      let triviaType: string | undefined;
+      try {
+        const savedConfig = localStorage.getItem('triviaConfig');
+        if (savedConfig) {
+          const config = JSON.parse(savedConfig);
+          triviaType = config.type;
+          console.log('🎯 [TriviaApp] Tipo de trivia:', triviaType);
+        }
+      } catch (e) {
+        console.warn('⚠️ [TriviaApp] No se pudo obtener tipo de trivia del config');
+      }
+
       const attempt = {
         user_id: currentUserId,
         category: topicName,
         difficulty: difficulty,
         score: results.totalScore,
         total_time: results.duration,
-        precision_score: Math.round(results.summary.averageAccuracy)
+        precision_score: Math.round(results.summary.averageAccuracy),
+        trivia_type: triviaType // 👈 Nuevo campo
       };
 
       const response = await fetch('http://localhost:4000/api/trivia-attempts', {
@@ -262,9 +502,9 @@ export default function TriviaApp() {
       console.log('✅ Intento de trivia guardado correctamente');
 
       // Calcular el score final directamente
-      const finalScore = results.totalScore % 10 === 0 
+      const finalScore = results.totalScore % 10 === 0
         ? results.totalScore * 2  // Si es múltiplo de 10
-        : (results.totalScore * 2) + (10 - ((results.totalScore*2) % 10));  // Si no es múltiplo de 10
+        : (results.totalScore * 2) + (10 - ((results.totalScore * 2) % 10));  // Si no es múltiplo de 10
 
       // 🎯 Actualizar el progreso diario del usuario (streak y has_done_today)
       try {
@@ -273,7 +513,7 @@ export default function TriviaApp() {
           headers: {
             'Content-Type': 'application/json',
           },
-      
+
           body: JSON.stringify({ score: finalScore })
         });
 
@@ -351,7 +591,15 @@ export default function TriviaApp() {
                   title={topicDescription}
                   style={{ whiteSpace: 'pre-wrap' }}
                 >
-                  <>¡Estás a punto de embarcarte en un desafío increíble! Prepárate para poner a prueba tus conocimientos sobre <b>{topicDescription}</b>. Responde a los retos que hemos preparado para ti, ¡y demuestra todo lo que sabes! ¿Te atreves a superar cada pregunta?</>
+                  {
+                    // Si el tema es uno de los especificados, mostrar solo la descripción
+                    ['Habilidades Blandas', 'Empleo Colombiano', 'Entrevistas'].includes(topicName)
+                      ? (
+                        <>{topicDescription}</>
+                      ) : (
+                        <>¡Estás a punto de embarcarte en un desafío increíble! Prepárate para poner a prueba tus conocimientos sobre <b>{topicDescription}</b>. Responde a los retos que hemos preparado para ti, ¡y demuestra todo lo que sabes! ¿Te atreves a superar cada pregunta?</>
+                      )
+                  }
                 </div>
               </div>
 
@@ -440,13 +688,17 @@ export default function TriviaApp() {
                 <div className={styles.feedbackScore}>
                   Puntuación: {evaluation.score}/10 | Precisión: {evaluation.accuracy}%
                 </div>
-                <div className={styles.feedbackText}>{evaluation.feedback}</div>
+                <div className={styles.feedbackText}>
+                  {displayedFeedback}
+                  {isTypingFeedback && <span className={styles.typingCursor}>|</span>}
+                </div>
                 <div className={styles.expectedAnswer}>
                   <span className={styles.expectedAnswerLabel}>
                     💡 Respuesta esperada:
                   </span>
                   <div className={styles.expectedAnswerText}>
-                    {evaluation.expectedAnswer}
+                    {displayedExpectedAnswer}
+                    {isTypingFeedback && <span className={styles.typingCursor}>|</span>}
                   </div>
                 </div>
 
@@ -472,31 +724,64 @@ export default function TriviaApp() {
                     Pregunta {currentQuestion.questionNumber} - Dificultad:{' '}
                     {currentQuestion.difficulty}
                   </div>
-                  <div className={styles.questionText}>{currentQuestion.question}</div>
+                  <div className={styles.questionText}>
+                    {displayedQuestion}
+                    {isTypingQuestion && <span className={styles.typingCursor}>|</span>}
+                  </div>
                   {currentQuestion.hint && (
                     <div className={styles.hint}>
                       <span className={styles.hintIcon}>💡</span>
-                      <span>{currentQuestion.hint}</span>
+                      <span>
+                        {displayedHint}
+                        {isTypingHint && <span className={styles.typingCursor}>|</span>}
+                      </span>
                     </div>
                   )}
                 </div>
 
                 <div className={styles.answerContainer}>
                   <label className={styles.answerLabel}>Tu respuesta:</label>
-                  <textarea
-                    className={styles.answerTextarea}
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    placeholder="Escribe tu respuesta detallada aquí..."
-                    disabled={loading}
-                  />
+
+                  <div style={{ position: 'relative' }}>
+                    <textarea
+                      className={styles.answerTextarea}
+                      value={userAnswer}
+                      onChange={(e) => setUserAnswer(e.target.value)}
+                      placeholder="Escribe tu respuesta detallada aquí o usa el micrófono para dictar..."
+                      disabled={loading}
+                    />
+                    <div className={styles.micButtonWrapper}>
+                      {isListening && (
+                        <>
+                          <div className={styles.rippleEffect}></div>
+                          <div className={styles.rippleEffect}></div>
+                          <div className={styles.rippleEffect}></div>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={toggleDictation}
+                        disabled={loading}
+                        className={`${styles.micButton} ${isListening ? styles.micButtonActive : ''}`}
+                        title={isListening ? 'Detener dictado' : 'Iniciar dictado'}
+                      >
+                        {isListening ? '⏸️' : '🎤'}
+                      </button>
+                    </div>
+                  </div>
+                  {isListening && (
+                    <div className={styles.listeningIndicator}>
+                      <span style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>🔴</span>
+                      Escuchando...
+                    </div>
+                  )}
                 </div>
 
                 <div className={styles.buttonContainer}>
                   <button
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={handleSubmitAnswer}
-                    disabled={loading || !userAnswer.trim()}
+                    disabled={loading || !userAnswer.trim() || isTypingQuestion || isTypingHint}
                   >
                     {loading ? 'Evaluando...' : ' Enviar Respuesta'}
                   </button>
@@ -511,6 +796,7 @@ export default function TriviaApp() {
                   <button
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={handleViewResults}
+                    disabled={isTypingFeedback}
                   >
                     Ver resultados
                   </button>
@@ -518,7 +804,7 @@ export default function TriviaApp() {
                   <button
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={handleNextQuestion}
-                    disabled={!nextQuestionPreloaded || isPreloading}
+                    disabled={!nextQuestionPreloaded || isPreloading || isTypingFeedback}
                   >
                     {isPreloading
                       ? ' Cargando...'

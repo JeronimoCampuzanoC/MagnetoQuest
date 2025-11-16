@@ -1884,7 +1884,7 @@ app.use('/api/trivia', triviaProxyRoutes);
 // GUARDAR INTENTO DE TRIVIA
 app.post('/api/trivia-attempts', async (req, res) => {
   try {
-    const { user_id, category, difficulty, score, total_time, precision_score } = req.body;
+    const { user_id, category, difficulty, score, total_time, precision_score, trivia_type } = req.body;
 
     // Validar campos requeridos
     if (!user_id || !category || !difficulty || score == null || total_time == null || precision_score == null) {
@@ -1980,6 +1980,91 @@ app.post('/api/trivia-attempts', async (req, res) => {
       // No fallar la petición principal si hay error en badges
     }
 
+    // 🎯 COMPLETAR MISIONES ESPECIALES DE TRIVIA (Habilidades, Entrevistas, Empleo)
+    try {
+      if (trivia_type) {
+        console.log(`🎯 [Trivia Special] Verificando misiones especiales para type: ${trivia_type}`);
+        
+        // Mapeo de tipos de trivia del frontend a categorías de misión en la DB
+        const typeToCategory: { [key: string]: string } = {
+          'Habilidades': 'Trivia_Abilities',
+          'Entrevistas': 'Trivia_Interview',
+          'Empleo': 'Trivia_Employment'
+        };
+
+        const missionCategory = typeToCategory[trivia_type];
+        
+        if (missionCategory) {
+          console.log(`🎯 [Trivia Special] Buscando misión de categoría: ${missionCategory}`);
+          
+          // Buscar misión activa de ese tipo para el usuario que no esté completada
+          const activeMission = await AppDataSource.query(
+            `
+            SELECT ump.ump_id, ump.progress, m.objective, m.title, m.xp_reward
+            FROM user_mission_progress ump
+            INNER JOIN mission m ON ump.mission_id = m.mission_id
+            WHERE ump.user_id = $1
+              AND m.category = $2
+              AND ump.completed_at IS NULL
+              AND m.is_active = TRUE
+            LIMIT 1
+            `,
+            [user_id, missionCategory]
+          );
+
+          if (activeMission && activeMission.length > 0) {
+            const mission = activeMission[0];
+            console.log(`✅ [Trivia Special] Misión encontrada: "${mission.title}" (${mission.progress}/${mission.objective})`);
+            
+            // Incrementar progreso
+            const newProgress = mission.progress + 1;
+            
+            // Si alcanzó el objetivo, completar la misión
+            if (newProgress >= mission.objective) {
+              await AppDataSource.query(
+                `
+                UPDATE user_mission_progress
+                SET progress = $2,
+                    status = 'completed',
+                    completed_at = NOW()
+                WHERE ump_id = $1
+                `,
+                [mission.ump_id, newProgress]
+              );
+              
+              // Añadir XP rewards
+              await AppDataSource.query(
+                `UPDATE user_progress 
+                 SET magento_points = magento_points + $2, updated_at = NOW() 
+                 WHERE user_id = $1`,
+                [user_id, mission.xp_reward]
+              );
+              
+              console.log(`🎉 [Trivia Special] ¡Misión "${mission.title}" completada! +${mission.xp_reward} MagnetoPoints`);
+            } else {
+              // Solo incrementar progreso
+              await AppDataSource.query(
+                `
+                UPDATE user_mission_progress
+                SET progress = $2
+                WHERE ump_id = $1
+                `,
+                [mission.ump_id, newProgress]
+              );
+              console.log(`📈 [Trivia Special] Progreso actualizado: ${newProgress}/${mission.objective}`);
+            }
+          } else {
+            console.log(`ℹ️ [Trivia Special] No se encontró misión activa de tipo ${missionCategory} para el usuario`);
+          }
+        } else {
+          console.log(`ℹ️ [Trivia Special] Tipo "${trivia_type}" no requiere misión especial`);
+        }
+      }
+    } catch (specialMissionError) {
+      console.error('❌ Error al procesar misiones especiales de trivia:', specialMissionError);
+      // No fallar la petición principal
+    }
+
     res.status(201).json(attempt);
   } catch (e) {
     console.error('Error al guardar intento de trivia:', e);
@@ -1992,6 +2077,7 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const repo = AppDataSource.getRepository(TriviaAttempt);
+    const userProgressRepo = AppDataSource.getRepository(UserProgress);
 
     // Obtener promedios
     const averagesQuery = await repo
@@ -2033,6 +2119,11 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
       difficultyCounts[difficulty] = parseInt(item.count) || 0;
     });
 
+    // Obtener datos de progreso del usuario (streak, has_done_today, magento_points)
+    const userProgress = await userProgressRepo.findOne({
+      where: { user_id: userId }
+    });
+
     // Combinar resultados
     const stats = {
       averages: {
@@ -2040,7 +2131,12 @@ app.get('/api/trivia-stats/:userId', async (req, res) => {
         precision: parseFloat(averagesQuery.average_precision || '0'),
         time: parseFloat(averagesQuery.average_time || '0')
       },
-      attemptsByDifficulty: difficultyCounts
+      attemptsByDifficulty: difficultyCounts,
+      userProgress: {
+        streak: userProgress?.streak || 0,
+        hasDoneToday: userProgress?.has_done_today || false,
+        magentoPoints: userProgress?.magento_points || 0
+      }
     };
 
     res.json(stats);
