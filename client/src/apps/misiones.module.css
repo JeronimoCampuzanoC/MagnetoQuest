@@ -7,6 +7,7 @@
     width: 100%;
 }
 
+
 .progressBar {
     background-color: rgb(255, 255, 255);
     border-radius: 20px;
@@ -16,10 +17,9 @@
     gap: 8px;
     align-items: stretch;
     width: 100%;
-    height: 90%;
+    height: 200px;
     grid-column: span 3 / span 3;
 }
-
 .points {
     font-size: 22px;
     margin-top: 22px;
@@ -37,7 +37,7 @@
     height: 160px;
     border-radius: 50%;
     background-color: #001B38;
-    margin-top: -30px;
+    margin-top: -15px;
 }
 
 .triangleRight {
@@ -87,6 +87,27 @@
     grid-row-start: 2;
     border-radius: 20px;
     width: 100%;
-    height: 100%;
+    height: 110%;
     background-color: rgb(255, 255, 255);
+    margin-top: -75px;  /* Agregar esta línea */
+}
+
+.mision-progress {
+    max-width: 300px; /* Ajusta este valor según sea necesario */
+    flex: 0 0 auto; /* Evita que se expanda */
+}
+
+/* Asegúrate de que el contenedor principal use flex o grid */
+.container {
+    display: flex; /* O usa display: grid; según tu diseño */
+    flex-direction: column; /* O row, según tu diseño */
+}
+
+.primer-grid {
+    max-width: 100%; /* Evita que se expanda más allá del contenedor */
+    flex: 0 1 auto; /* Permite que el grid sea responsivo */
+}
+
+.segundo-grid {
+    flex: 1; /* Permite que el segundo grid se expanda */
 }
