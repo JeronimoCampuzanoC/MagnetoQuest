@@ -1724,7 +1724,7 @@ VALUES (
                 0
         ),
         5,
-        TRUE,
+        FALSE,
         150,
         NOW() - INTERVAL '10 days',
         NOW()
@@ -1754,7 +1754,7 @@ VALUES (
                 2
         ),
         8,
-        TRUE,
+        FALSE,
         220,
         NOW() - INTERVAL '8 days',
         NOW()
@@ -1769,7 +1769,7 @@ VALUES (
                 3
         ),
         12,
-        TRUE,
+        FALSE,
         350,
         NOW() - INTERVAL '7 days',
         NOW()
@@ -1799,7 +1799,7 @@ VALUES (
                 5
         ),
         7,
-        TRUE,
+        FALSE,
         180,
         NOW() - INTERVAL '5 days',
         NOW()
@@ -1829,7 +1829,7 @@ VALUES (
                 7
         ),
         4,
-        TRUE,
+        FALSE,
         95,
         NOW() - INTERVAL '3 days',
         NOW()
@@ -1844,7 +1844,7 @@ VALUES (
                 8
         ),
         9,
-        TRUE,
+        FALSE,
         275,
         NOW() - INTERVAL '2 days',
         NOW()
