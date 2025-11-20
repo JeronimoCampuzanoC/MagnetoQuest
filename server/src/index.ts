@@ -241,7 +241,7 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
       userProgress = userProgressRepo.create({
         user_id: userId,
         streak: 1,
-        has_done_today: false,
+        has_done_today: true,
         // Puntos por completar trivia + score opcional enviado por el cliente
         magento_points: 10 + (scoreValue > 0 ? scoreValue : 0)
       });
@@ -249,7 +249,7 @@ app.put('/api/users/:userId/progress/trivia-completed', async (req, res) => {
       // Si ya completó hoy, no incrementar racha
       if (!userProgress.has_done_today) {
         userProgress.streak += 1;
-        userProgress.has_done_today = false;
+        userProgress.has_done_today = true;
         userProgress.magento_points += 10;
       }
 
